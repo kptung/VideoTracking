@@ -59,9 +59,9 @@ public class NativeCamshift {
 	 * RectangleID 0: x = 122, y = 20, w = 45, h = 78.<br />
 	 * RectangleID 1: x = 23, y = 23, w = 100, h = 20.<br />
 	 * RectangleID 2: False alarm.
-	 * @return Return -1 if error occured, otherwise return 0.
+	 * @return Return false if error occured, otherwise return true.
 	 */
-	public int processCamshift(byte[] image, int width, int height,
+	public boolean processCamshift(byte[] image, int width, int height,
 			int[] rects) {
 		return processCamshiftA(handle, image, width, height, rects);
 	}
@@ -73,9 +73,9 @@ public class NativeCamshift {
 	 * @param width The image width.
 	 * @param height The image height.
 	 * @param rects The hash map to save results.
-	 * @return Return -1 if error occured, otherwise return 0.
+	 * @return Return false if error occured, otherwise return true.
 	 */
-	public int processCamshift(byte[] image, int width, int height,
+	public boolean processCamshift(byte[] image, int width, int height,
 			HashMap<Integer, Rect> rects) {
 		return processCamshiftO(handle, image, width, height, rects);
 	}
@@ -104,11 +104,11 @@ public class NativeCamshift {
 	private native int initCamshiftO(long handle, byte[] image, int width,
 			int height, Rect rect);
 
-	private native int processCamshiftA(long handle, byte[] image, int width,
-			int height, int[] rects);
+	private native boolean processCamshiftA(long handle, byte[] image,
+			int width, int height, int[] rects);
 
-	private native int processCamshiftO(long handle, byte[] image, int width,
-			int height, HashMap<Integer, Rect> rects);
+	private native boolean processCamshiftO(long handle, byte[] image,
+			int width, int height, HashMap<Integer, Rect> rects);
 
 	private native void deleteRectangle(long handle, int id);
 

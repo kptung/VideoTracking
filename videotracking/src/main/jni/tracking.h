@@ -18,11 +18,11 @@ JNIEXPORT jint JNICALL Java_org_iii_snsi_videotracking_NativeCamshift_initCamshi
   (JNIEnv *env, jclass clazz, jlong handle, jbyteArray image, jint width,
    jint height, jobject rect);
 
-JNIEXPORT jint JNICALL Java_org_iii_snsi_videotracking_NativeCamshift_processCamshiftA
+JNIEXPORT jboolean JNICALL Java_org_iii_snsi_videotracking_NativeCamshift_processCamshiftA
   (JNIEnv *env, jclass clazz, jlong handle, jbyteArray image, jint width,
    jint height, jintArray rects);
 
-JNIEXPORT jint JNICALL Java_org_iii_snsi_videotracking_NativeCamshift_processCamshiftO
+JNIEXPORT jboolean JNICALL Java_org_iii_snsi_videotracking_NativeCamshift_processCamshiftO
   (JNIEnv *env, jclass clazz, jlong handle, jbyteArray image, jint width,
    jint height, jobject rects);
 

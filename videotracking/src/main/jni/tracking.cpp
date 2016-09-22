@@ -34,16 +34,16 @@ JNIEXPORT jint JNICALL Java_org_iii_snsi_videotracking_NativeCamshift_initCamshi
     return 0;
 }
 
-JNIEXPORT jint JNICALL Java_org_iii_snsi_videotracking_NativeCamshift_processCamshiftA
+JNIEXPORT jboolean JNICALL Java_org_iii_snsi_videotracking_NativeCamshift_processCamshiftA
 (JNIEnv *env, jclass clazz, jlong handle, jbyteArray image, jint width,
         jint height, jintArray rects) {
-    return 0;
+    return JNI_TRUE;
 }
 
-JNIEXPORT jint JNICALL Java_org_iii_snsi_videotracking_NativeCamshift_processCamshiftO
+JNIEXPORT jboolean JNICALL Java_org_iii_snsi_videotracking_NativeCamshift_processCamshiftO
 (JNIEnv *env, jclass clazz, jlong handle, jbyteArray image, jint width,
         jint height, jobject rects) {
-    return 0;
+    return JNI_TRUE;
 }
 
 JNIEXPORT void JNICALL Java_org_iii_snsi_videotracking_NativeCamshift_deleteRectangle
