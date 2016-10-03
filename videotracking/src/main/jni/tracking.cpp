@@ -17,41 +17,48 @@
 using namespace std;
 using namespace cv;
 
-JNIEXPORT jlong JNICALL Java_org_iii_snsi_videotracking_NativeCamshift_initialize
+JNIEXPORT jlong JNICALL Java_org_iii_snsi_videotracking_NativeTracking_createHandle
 (JNIEnv *env, jclass clazz) {
     return 0;
 }
 
-JNIEXPORT jint JNICALL Java_org_iii_snsi_videotracking_NativeCamshift_initCamshiftA
+JNIEXPORT jint JNICALL Java_org_iii_snsi_videotracking_NativeTracking_initTrackingA
 (JNIEnv *env, jclass clazz, jlong handle, jbyteArray image, jint width,
         jint height, jintArray rect) {
     return 0;
 }
 
-JNIEXPORT jint JNICALL Java_org_iii_snsi_videotracking_NativeCamshift_initCamshiftO
+JNIEXPORT jint JNICALL Java_org_iii_snsi_videotracking_NativeTracking_initTrackingO
 (JNIEnv *env, jclass clazz, jlong handle, jbyteArray image, jint width,
-        jint height, jobject rect) {
+        jint height, jobjectArray rects) {
     return 0;
 }
 
-JNIEXPORT jboolean JNICALL Java_org_iii_snsi_videotracking_NativeCamshift_processCamshiftA
-(JNIEnv *env, jclass clazz, jlong handle, jbyteArray image, jint width,
-        jint height, jintArray rects) {
-    return JNI_TRUE;
+JNIEXPORT jint JNICALL Java_org_iii_snsi_videotracking_NativeTracking_addTrackingObjectA
+(JNIEnv *env, jclass clazz, jlong handle, jbyteArray image, jintArray rect) {
+    return 0;
 }
 
-JNIEXPORT jboolean JNICALL Java_org_iii_snsi_videotracking_NativeCamshift_processCamshiftO
-(JNIEnv *env, jclass clazz, jlong handle, jbyteArray image, jint width,
-        jint height, jobject rects) {
-    return JNI_TRUE;
+JNIEXPORT jint JNICALL Java_org_iii_snsi_videotracking_NativeTracking_addTrackingObjectO
+(JNIEnv *env, jclass clazz, jlong handle, jbyteArray image, jobject rect) {
+    return 0;
 }
 
-JNIEXPORT void JNICALL Java_org_iii_snsi_videotracking_NativeCamshift_deleteRectangle
+JNIEXPORT void JNICALL Java_org_iii_snsi_videotracking_NativeTracking_removeTrackingObject
 (JNIEnv *env, jclass clazz, jlong handle, jint id) {
-
 }
 
-JNIEXPORT void JNICALL Java_org_iii_snsi_videotracking_NativeCamshift_releaseHandle
-(JNIEnv *env, jclass clazz, jlong handle) {
+JNIEXPORT jboolean JNICALL Java_org_iii_snsi_videotracking_NativeTracking_processTrackingA
+(JNIEnv *env, jclass clazz, jlong handle, jbyteArray image,
+        jintArray rects) {
+    return JNI_TRUE;
+}
 
+JNIEXPORT jboolean JNICALL Java_org_iii_snsi_videotracking_NativeTracking_processTrackingO
+(JNIEnv *env, jclass clazz, jlong handle, jbyteArray image, jobject rects) {
+    return JNI_TRUE;
+}
+
+JNIEXPORT void JNICALL Java_org_iii_snsi_videotracking_NativeTracking_releaseHandle
+(JNIEnv *env, jclass clazz, jlong handle) {
 }
