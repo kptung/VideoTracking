@@ -14,18 +14,18 @@ int main(int argc, char** argv)
         return 0;
 
 	int init_frame_index = 224;
-	int w = 20, h = 20;
-	std::vector<cv::Rect> objs = make_vector<cv::Rect>() << cv::Rect(123, 153, 45, 40);
+	int w = 25, h = 25;
+	std::vector<cv::Rect> objs = make_vector<cv::Rect>() << cv::Rect(120, 150, 52, 45);
 	std::vector<int> tr_obj_ids;
 
-	bool track_multiobj_flag = true;
+	bool track_multiobj_flag = false;
 	if (track_multiobj_flag)
 	{
-		cv::Rect r1(25, 120, w, h);
-		cv::Rect r2(50, 120, w, h);
-		cv::Rect r3(80, 120, w, h);
-		cv::Rect r4(32, 187, w, h);
-		cv::Rect r5(70, 190, w, h);
+		cv::Rect r1(22, 117, w, h);
+		cv::Rect r2(48, 117, w, h);
+		cv::Rect r3(78, 117, w, h);
+		cv::Rect r4(30, 184, w, h);
+		cv::Rect r5(68, 187, w, h);
 		std::vector<cv::Rect> others = make_vector<cv::Rect>() << r1 << r2 << r3 << r4 << r5;
 		objs.insert(objs.end(), others.begin(), others.end());
 	}
@@ -57,7 +57,7 @@ int main(int argc, char** argv)
 
 
 	std::map<int, cv::Rect> results;
-	for (int next = 0; next < 10; ++next)
+	for (int next = 0; next < 20; ++next)
 	{
 		int index = init_frame_index + next  ;
 		frame = imread( seq + files[index] );
