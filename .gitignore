@@ -6,3 +6,7 @@
 .DS_Store
 /build
 /captures
+/videotracking/src/main/jni/videotracking.sdf
+/videotracking/src/main/jni/videotracking.sln
+/videotracking/src/main/jni/videotracking.vcxproj
+/videotracking/src/main/jni/test_android.cpp

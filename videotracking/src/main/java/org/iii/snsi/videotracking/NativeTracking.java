@@ -7,7 +7,6 @@ import java.util.HashMap;
 public class NativeTracking {
 
 	static {
-		System.loadLibrary("opencv_java3");
 		System.loadLibrary("videotracking");
 	}
 	private long handle;
@@ -63,7 +62,7 @@ public class NativeTracking {
 	}
 
 	/**
-	 * Processing Camshit to track rectangles
+	 * Processing algorithm to track rectangles
 	 *
 	 * @param image The NV21 image.
 	 * @param rect The retangle to be track
@@ -116,28 +115,22 @@ public class NativeTracking {
 	public void releaseHandle() {
 		releaseHandle(handle);
 	}
+	
+	
+	
+	/**
+	 * Native functions (will be implemented by C/C++)
+	 */
+	private native long createHandle_();
 
-	private native long createHandle();
+	private native int[] initTrackingObjects_(long handle, byte[] image, int width, int height, int[] rects);
 
-	private native int initTrackingA(long handle, byte[] image, int width,
-			int height, int[] rect);
+	private native int[] addTrackingObjects_(long handle, byte[] image, int[] rects);
 
-	private native int initTrackingO(long handle, byte[] image, int width,
-			int height, Rect[] rects);
+	private native void removeTrackingObjects_(long handle, int[] ids);
 
-	private native int addTrackingObjectA(long handle, byte[] image,
-			int[] rect);
+	private native boolean processTracking_(long handle, byte[] image, int[] ids, int[] rects);
 
-	private native int addTrackingObjectO(long handle, byte[] image,
-			Rect rect);
-
-	private native void removeTrackingObject(long handle, int id);
-
-	private native boolean processTrackingA(long handle, byte[] image,
-			int[] rects);
-
-	private native boolean processTrackingO(long handle, byte[] image,
-			HashMap<Integer, Rect> rects);
-
-	private native void releaseHandle(long handle);
+	private native void releaseHandle_(long handle);
+	
 }

@@ -1,9 +1,11 @@
 #ifndef __common_hpp__
 #define __common_hpp__
 
+#include <vector>
 #include <string>
 #include <sstream>
 #include <fstream>
+#include <iostream>
 #include <iomanip> 
 
 #ifndef SEP
