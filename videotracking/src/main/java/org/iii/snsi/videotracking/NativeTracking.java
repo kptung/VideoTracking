@@ -31,8 +31,8 @@ public class NativeTracking {
 	 */
 	public int initTracking(byte[] image, int width, int height,
 			int[] rects) {
-
-		return initTrackingA(handle, image, width, height, rects);
+		return 0;
+		//return initTrackingA(handle, image, width, height, rects);
 	}
 
 	/**
@@ -46,8 +46,8 @@ public class NativeTracking {
 	 */
 	public int initTracking(byte[] image, int width, int height,
 			Rect[] rects) {
-
-		return initTrackingO(handle, image, width, height, rects);
+		return 0;
+		//return initTrackingO(handle, image, width, height, rects);
 	}
 
 	/**
@@ -58,7 +58,8 @@ public class NativeTracking {
 	 * @return A postive rectangle id, return -1 if error occurred.
 	 */
 	public int addTrackingObject(byte[] image, int[] rect) {
-		return addTrackingObjectA(handle, image, rect);
+		//return addTrackingObjectA(handle, image, rect);
+		return 0;
 	}
 
 	/**
@@ -69,16 +70,17 @@ public class NativeTracking {
 	 * @return A postive rectangle id, return -1 if error occurred.
 	 */
 	public int addTrackingObject(byte[] image, Rect rect) {
-		return addTrackingObjectO(handle, image, rect);
+		return 0;
+		//return addTrackingObjectO(handle, image, rect);
 	}
 
 	/**
 	 * The function to release rectangle object
 	 *
-	 * @param id The rectangle id that is returned by initTracking.
+	 * @param ids The rectangle id that is returned by initTracking.
 	 */
-	public void removeTrackingObject(int id) {
-		removeTrackingObject(handle, id);
+	public void removeTrackingObject(int[] ids) {
+		removeTrackingObjects(handle, ids);
 	}
 
 	/**
@@ -93,7 +95,8 @@ public class NativeTracking {
 	 * @return Return false if error occured, otherwise return true.
 	 */
 	public boolean processTracking(byte[] image, int[] rects) {
-		return processTrackingA(handle, image, rects);
+		return true;
+		//return processTrackingA(handle, image, rects);
 	}
 
 	/**
@@ -105,8 +108,8 @@ public class NativeTracking {
 	 */
 	public boolean processTracking(byte[] image,
 			HashMap<Integer, Rect> rects) {
-
-		return processTrackingO(handle, image, rects);
+		return true;
+		//return processTrackingO(handle, image, rects);
 	}
 
 	/**
@@ -121,16 +124,16 @@ public class NativeTracking {
 	/**
 	 * Native functions (will be implemented by C/C++)
 	 */
-	private native long createHandle_();
+	private native long createHandle();
 
-	private native int[] initTrackingObjects_(long handle, byte[] image, int width, int height, int[] rects);
+	private native int[] initTrackingObjects(long handle, byte[] image, int width, int height, int[] rects);
 
-	private native int[] addTrackingObjects_(long handle, byte[] image, int[] rects);
+	private native int[] addTrackingObjects(long handle, byte[] image, int[] rects);
 
-	private native void removeTrackingObjects_(long handle, int[] ids);
+	private native void removeTrackingObjects(long handle, int[] ids);
 
-	private native boolean processTracking_(long handle, byte[] image, int[] ids, int[] rects);
+	private native boolean processTracking(long handle, byte[] image, int[] ids, int[] rects);
 
-	private native void releaseHandle_(long handle);
+	private native void releaseHandle(long handle);
 	
 }
