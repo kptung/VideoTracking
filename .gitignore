@@ -45,6 +45,7 @@ captures/
 
 # Customized files
 .DS_Store
+/videotracking/src/main/jniLibs/
 /videotracking/src/main/jni/videotracking.sdf
 /videotracking/src/main/jni/videotracking.sln
 /videotracking/src/main/jni/videotracking.vcxproj
