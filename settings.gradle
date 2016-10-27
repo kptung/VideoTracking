@@ -1,3 +1,1 @@
 include ':app', ':videotracking'
-//include ':openCVLibrary310'
-include ':openCVLibrary2411'
