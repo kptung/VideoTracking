@@ -130,10 +130,10 @@ public class NativeTracking {
 
 	private native int[] addTrackingObjects(long handle, byte[] image, int[] rects);
 
-	private native void removeTrackingObjects(long handle, int[] ids);
+	private native boolean removeTrackingObjects(long handle, int[] ids);
 
-	private native boolean processTracking(long handle, byte[] image, int[] ids, int[] rects);
+	private native int[] processTracking(long handle, byte[] image);
 
-	private native void releaseHandle(long handle);
+	private native boolean releaseHandle(long handle);
 	
 }
