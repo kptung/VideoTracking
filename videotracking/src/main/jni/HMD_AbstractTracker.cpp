@@ -1,6 +1,6 @@
 #include "HMD_AbstractTracker.hpp"
 #include "HMD_TrackerTM.hpp"
-#include "HMD_TrackerPF.hpp"
+//#include "HMD_TrackerPF.hpp"
 
 using namespace cv;
 using namespace std;
@@ -21,8 +21,8 @@ T_HANDLE CreateVideoTracker( int type )
 
 	case 1:
 
-		pTracker = new TrackerPF();
-		break;
+		//pTracker = new TrackerPF();
+		//break;
 
 	default:
 		break;

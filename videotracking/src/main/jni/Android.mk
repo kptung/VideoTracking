@@ -9,7 +9,7 @@ OPENCV_INSTALL_MODULES:=on
 OPENCV_LIB_TYPE:=SHARED
 include ${OPENCVROOT}/sdk/native/jni/OpenCV.mk
 
-LOCAL_SRC_FILES :=
+LOCAL_SRC_FILES := HMD_AbstractTracker.cpp jni_NativeTracking.cpp
 LOCAL_LDLIBS += -llog
 LOCAL_MODULE := videotracking
 
