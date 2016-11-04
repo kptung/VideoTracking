@@ -48,7 +48,9 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_initT
 
       // Image data (Mat)
       jbyte* jimageArrayData = env->GetByteArrayElements(jimage, 0);
-      const Mat& image = Mat(imgHeight, imgWidth, CV_8UC1, (unsigned char *)jimageArrayData);
+      const Mat& argb = Mat(imgHeight, imgWidth, CV_8UC4, (unsigned char *)jimageArrayData);
+	  Mat image;
+	  cv::cvtColor(argb, image, CV_RGBA2BGR);
 
       // Rect data (jint Array)
       int jrectsLength = env->GetArrayLength(jrects);
@@ -58,12 +60,12 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_initT
       jintArray jids = env->NewIntArray(jrectsLength / 4);
       jint* jidsArrayData = env->GetIntArrayElements(jids, 0);
 
-      for (int i = 0; i < jrectsLength; i + 4) {
+      for (int i = 0, j = 0; i < jrectsLength; i += 4, j++) {
           // Rect data (Rect)
           const Rect& target = Rect((int)jrectsArrayData[i], (int)jrectsArrayData[i+1], (int)jrectsArrayData[i+2], (int)jrectsArrayData[i+3]);
           if(JNI_DBG)
               LOGD("SetTrackingTarget");
-          jidsArrayData[i] = SetTrackingTarget((T_HANDLE)jhandle, image, target);
+          jidsArrayData[j] = SetTrackingTarget((T_HANDLE)jhandle, image, target);
       }
 
       env->ReleaseByteArrayElements(jimage, jimageArrayData, 0);
@@ -82,7 +84,9 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_addTr
   (JNIEnv *env, jobject jNativeTracking, jlong jhandle, jbyteArray jimage, jintArray jrects) {
       // Image data (Mat)
       jbyte* jimageArrayData = env->GetByteArrayElements(jimage, 0);
-      const Mat& image = Mat(imgHeight, imgWidth, CV_8UC1, (unsigned char *)jimageArrayData);
+      const Mat& argb = Mat(imgHeight, imgWidth, CV_8UC4, (unsigned char *)jimageArrayData);
+	  Mat image;
+	  cv::cvtColor(argb, image, CV_RGBA2BGR);
 
       // Rect data (jint Array)
       int jrectsLength = env->GetArrayLength(jrects);
@@ -92,12 +96,12 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_addTr
       jintArray jids = env->NewIntArray(jrectsLength / 4);
       jint* jidsArrayData = env->GetIntArrayElements(jids, 0);
 
-      for (int i = 0; i < jrectsLength; i + 4) {
+      for (int i = 0, j = 0; i < jrectsLength; i += 4, j++) {
           // Rect data (Rect)
           const Rect& target = Rect((int)jrectsArrayData[i], (int)jrectsArrayData[i+1], (int)jrectsArrayData[i+2], (int)jrectsArrayData[i+3]);
           if(JNI_DBG)
               LOGD("AddTrackingTarget");
-          jidsArrayData[i] = AddTrackingTarget((T_HANDLE)jhandle, image, target);
+          jidsArrayData[j] = AddTrackingTarget((T_HANDLE)jhandle, image, target);
       }
 
       env->ReleaseByteArrayElements(jimage, jimageArrayData, 0);
@@ -144,7 +148,9 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_proce
   (JNIEnv *env, jobject jNativeTracking, jlong jhandle, jbyteArray jimage) {
       // Image data (Mat)
       jbyte* jimageArrayData = env->GetByteArrayElements(jimage, 0);
-      const Mat& image = Mat(imgHeight, imgWidth, CV_8UC1, (unsigned char *)jimageArrayData);
+      const Mat& argb = Mat(imgHeight, imgWidth, CV_8UC4, (unsigned char *)jimageArrayData);
+	  Mat image;
+	  cv::cvtColor(argb, image, CV_RGBA2BGR);
 
       // Map result
       map<int, Rect> results;
@@ -177,7 +183,6 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_proce
       env->ReleaseByteArrayElements(jimage, jimageArrayData, 0);
 
       return jIdsRects;
-
   }
 
 /*

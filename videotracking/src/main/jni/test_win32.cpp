@@ -35,6 +35,7 @@ int main(int argc, char** argv)
 	T_HANDLE tracker = CreateVideoTracker();
 
 	cv::Mat frame = imread( seq + files[init_frame_index-1] );
+	//cv::Mat frame = imread( seq + files[init_frame_index-1], 0 );
 	for(int kk=0;kk<NumOfObjs;kk++)
 	{ 
 		if (kk == 0)
@@ -61,6 +62,7 @@ int main(int argc, char** argv)
 	{
 		int index = init_frame_index + next  ;
 		frame = imread( seq + files[index] );
+		//frame = imread( seq + files[index], 0 );
 		
 		bool success = RunTargetTracking( tracker, frame, results );
 

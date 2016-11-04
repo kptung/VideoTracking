@@ -15,7 +15,7 @@ public class NativeTracking {
 	 * Constructor
 	 */
 	public NativeTracking() {
-		handle = createHandle();
+		//handle = createHandle();
 	}
 
 	/**
@@ -124,16 +124,17 @@ public class NativeTracking {
 	/**
 	 * Native functions (will be implemented by C/C++)
 	 */
-	private native long createHandle();
+	public native long createHandle();
 
-	private native int[] initTrackingObjects(long handle, byte[] image, int width, int height, int[] rects);
+	public native int[] initTrackingObjects(long handle, byte[] image, int width, int height,
+		int[] rects);
 
-	private native int[] addTrackingObjects(long handle, byte[] image, int[] rects);
+	public native int[] addTrackingObjects(long handle, byte[] image, int[] rects);
 
-	private native boolean removeTrackingObjects(long handle, int[] ids);
+	public native boolean removeTrackingObjects(long handle, int[] ids);
 
-	private native int[] processTracking(long handle, byte[] image);
+	public native int[] processTracking(long handle, byte[] image);
 
-	private native boolean releaseHandle(long handle);
+	public native boolean releaseHandle(long handle);
 	
 }
