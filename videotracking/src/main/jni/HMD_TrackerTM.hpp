@@ -28,6 +28,8 @@ const std::string db_output("/sdcard/output/");
 
 #include "HMD_AbstractTracker.hpp"
 
+#define UNKNOWN_FLOW_THRESH 1e9 
+
 using namespace cv;
 using namespace std;
 
@@ -37,23 +39,78 @@ public:
 
 	TrackerTM() :  AbstractTracker()
 	{
-		m_frame_id = 224;
 		match_method = 5;
 	}
 
-	float Dist(Rect &p, Rect &q)
+	/// add a tracking obj
+	virtual int addTrackingObject(const cv::Mat& image, const cv::Rect& obj_roi)
+	{
+		int obj_id = AbstractTracker::addTrackingObject(image, obj_roi);
+
+		if (obj_id >= 0)
+		{
+			m_active_roi.insert(std::make_pair(obj_id, obj_roi));
+			m_active_prev_roi.insert(std::make_pair(obj_id, obj_roi));
+			m_active_pts_vector.insert(std::make_pair(obj_id, Point(0,0)));
+			m_active_missing.insert(std::make_pair(obj_id, 0));
+		}
+
+		return obj_id;
+	}
+
+	/// calculate the distance between 2 regions
+	float getDist(const Rect &p, const Rect &q)
 	{
 		Point p1 = Point(p.x + p.width / 2, p.y + p.height / 2);
 		Point p2 = Point(q.x + q.width / 2, q.y + q.height / 2);
-		Point diff = p1 - p2;
+		return getDist(p1, p2);
+	}
+
+	/// calculate the distance between 2 points
+	float getDist(const Point &p, const Point &q)
+	{
+		Point diff = p - q;
 		return cv::sqrt(float(diff.x*diff.x + diff.y*diff.y));
 	}
 	
-	void convert2edge(Mat source, Mat &destination)
+	/// obtain the sum of absolute difference (SAD) between 2 images 
+	double getSAD(const Mat& a, const Mat& b)
 	{
+		Scalar x = cv::sum(cv::abs(a - b));
+		if (a.channels()==1 || b.channels()==1)
+			return x.val[0];
+		else
+			return (x.val[0] + x.val[1] + x.val[2])/3;
+	}
+
+	/// calculate the moving vector from the current frame and the previous frame
+	Point getLinevec(const Rect& prev_roi, const Rect& roi)
+	{
+		Point p1 = Point(prev_roi.x, prev_roi.y);
+		Point p2 = Point(roi.x, roi.y);
+		Point vec = p2 - p1;
+		return vec;
+	}
+
+	/// use the moving vector from the current frame and the previous frame 2 predict the region
+	Rect getLinepts(const Rect& prev_roi, const Point& vec)
+	{
+		Rect match=prev_roi;
+		double unitvec = 0.4;
+		match.x = prev_roi.x + vec.x * unitvec;
+		match.y = prev_roi.y + vec.y * unitvec;
+		return match;
+	}
+
+	/// convert the image 2 its edge image
+	void convert2edge(const Mat& source, Mat& destination)
+	{
+		/// initialization
 		int edge_flag = 3;
 		int th1 = 100, th2 = 200;
 		Mat gx, absgx, gy, absgy, dst;
+
+		/// selection
 		switch (edge_flag)
 		{
 		case 1:
@@ -73,226 +130,249 @@ public:
 		default:
 			break;
 		}
-		//
-		
-		
 	}
 
-	Scalar getMSSIM(const Mat& i1, const Mat& i2)
+	/// the Gaussian weight of the distance between two regions
+	double getLocWeight(const Rect& r1, const Rect& r2)
 	{
-		const double C1 = 6.5025, C2 = 58.5225;
-		/***************************** INITS **********************************/
-		int d = CV_32F;
-
-		Mat I1, I2;
-		i1.convertTo(I1, d);           // cannot calculate on one byte large values
-		i2.convertTo(I2, d);
-
-		Mat I2_2 = I2.mul(I2);        // I2^2
-		Mat I1_2 = I1.mul(I1);        // I1^2
-		Mat I1_I2 = I1.mul(I2);        // I1 * I2
-
-									   /***********************PRELIMINARY COMPUTING ******************************/
-
-		Mat mu1, mu2;   //
-		GaussianBlur(I1, mu1, Size(11, 11), 1.5);
-		GaussianBlur(I2, mu2, Size(11, 11), 1.5);
-
-		Mat mu1_2 = mu1.mul(mu1);
-		Mat mu2_2 = mu2.mul(mu2);
-		Mat mu1_mu2 = mu1.mul(mu2);
-
-		Mat sigma1_2, sigma2_2, sigma12;
-
-		GaussianBlur(I1_2, sigma1_2, Size(11, 11), 1.5);
-		sigma1_2 -= mu1_2;
-
-		GaussianBlur(I2_2, sigma2_2, Size(11, 11), 1.5);
-		sigma2_2 -= mu2_2;
-
-		GaussianBlur(I1_I2, sigma12, Size(11, 11), 1.5);
-		sigma12 -= mu1_mu2;
-
-		///////////////////////////////// FORMULA ////////////////////////////////
-		Mat t1, t2, t3;
-
-		t1 = 2 * mu1_mu2 + C1;
-		t2 = 2 * sigma12 + C2;
-		t3 = t1.mul(t2);              // t3 = ((2*mu1_mu2 + C1).*(2*sigma12 + C2))
-
-		t1 = mu1_2 + mu2_2 + C1;
-		t2 = sigma1_2 + sigma2_2 + C2;
-		t1 = t1.mul(t2);               // t1 =((mu1_2 + mu2_2 + C1).*(sigma1_2 + sigma2_2 + C2))
-
-		Mat ssim_map;
-		divide(t3, t1, ssim_map);      // ssim_map =  t3./t1;
-
-		Scalar mssim = mean(ssim_map); // mssim = average of ssim map
-		return mssim;
-	}
-
-	double getPSNR(const Mat& I1, const Mat& I2)
-	{
-		Mat s1;
-		absdiff(I1, I2, s1);       // |I1 - I2|
-		s1.convertTo(s1, CV_32F);  // cannot make a square on 8 bits
-		s1 = s1.mul(s1);           // |I1 - I2|^2
-
-		Scalar s = sum(s1);         // sum elements per channel
-
-		double sse = s.val[0] + s.val[1] + s.val[2]; // sum channels
-
-		if (sse <= 1e-10) // for small values return zero
-			return 0;
+		/// initialization
+		Point diff = Point(r1.x+r1.width/2,r1.y+r1.height/2) - Point(r2.x+r2.width/2, r2.y+r2.height/2);
+		
+		/// define the searching range
+		int sigma = (min(r1.width, r1.height) - 1) / 2;
+		
+		/// calculate the distance between 2 points
+		double dist = getDist(Point(r1.x + r1.width / 2, r1.y + r1.height / 2), Point(r2.x + r2.width / 2, r2.y + r2.height / 2));
+		
+		if (dist <= 2 * sigma)
+			return (1 / sqrt(2 * CV_PI * sigma * sigma)) * exp(double(-(diff.x*diff.x + diff.y*diff.y) / (2 * sigma * sigma)));
 		else
-		{
-			double  mse = sse / (double)(I1.channels() * I1.total());
-			double psnr = 10.0*log10((255 * 255) / mse);
-			return psnr;
-		}
+			return -1;
 	}
 
-	void maxLocs(const Mat& src, queue<Point>& dst)
+	/// Obtain the possibility regions by thresholding
+	vector<Point> getLocs(const Mat& src)
 	{
-		//float maxValue = -1.0f * numeric_limits<float>::max();
-		float maxValue = 0.95;
-		float* srcData = reinterpret_cast<float*>(src.data);
-
-		for (int i = 0; i < src.rows; i++)
+		/// threshold
+		float maxValue = 0.9;
+		vector<Point> locs;
+		
+		for (int j = 0; j < src.rows; j++)
 		{
-			for (int j = 0; j < src.cols; j++)
+			for (int i = 0; i < src.cols; i++)
 			{
-				float v = srcData[i*src.cols + j];
-				if ( v > maxValue)
-				{
-					dst.push(Point(j, i));
-				}
+				float v = src.at<float>(Point(i,j));
+				if (v > maxValue)
+					locs.push_back(Point(i, j));
 			}
 		}
-
+		
+		return locs;
 	}
-
-	virtual int addTrackingObject(const cv::Mat& image, const cv::Rect& obj_roi)
+	
+	/// Obtain the highest possibility region by using the fusion weight
+	Rect getMaxloc(const Mat& weight, const vector<Point>& locs, const Rect& prev_roi, const Mat& tmplate, const Mat& target)
 	{
-		int obj_id = AbstractTracker::addTrackingObject(image, obj_roi);
+		/// weighting ratio
+		double r = 0.5;
 
-		if (obj_id >= 0)
+		/// initialization
+		vector<Point> pos;
+		double sum = 1e10;
+		Rect rec;
+
+		/// looping
+		for (int i = 0; i < locs.size(); i++)
 		{
-			m_active_roi.insert(std::make_pair(obj_id, obj_roi));
-		}
+			Point loc = locs.at(i);
+			
+			/// weight 1 is obtained from the template matching; if the value is higher, it means that the region is like the compared one 
+			double w1= weight.at<float>(loc);
 
-		return obj_id;
+			/// weight 2 is obtained from the SAD difference; if the value is lower, it means that the region is like the compared one 
+			Rect roi = Rect(loc.x, loc.y, prev_roi.width, prev_roi.height);
+			double w2 = getSAD(tmplate, target(roi));
+
+			/// total weight is the fusion weight: half weight is from the template matching and another half is from the SAD difference
+			/// since the weight 1 needs higher value and the weight 2 prefers the lower one, it can be modify the weight 1 to match the requirement (find the smallest)
+			double w = (1-r) * (1-w1) + r * w2;
+
+			/// by comparing the fusion weight, the suitable region is found (the smallest value)
+			if (w < sum)
+			{
+				sum = w;
+				rec = roi;
+			}	
+		}
+		return rec;
 	}
 	
-	
-	bool runObjectTrackingAlgorithm (const cv::Mat& image, std::map<int, cv::Rect>& objects)
+	// Template Matching 
+	Rect TMatch(const Mat& target, const Mat& tmplate, const Rect prev_roi)
+	{
+		/// set search range of the target image (3 times larger than the template)
+		Rect new_roi = prev_roi;
+		new_roi.x = new_roi.x - new_roi.width;
+		new_roi.y = new_roi.y - new_roi.height;
+		new_roi.width = new_roi.width * 3;
+		new_roi.height = new_roi.height * 3;
+
+		/// boundary check
+		new_roi.x = max(0, new_roi.x);
+		new_roi.x = min(new_roi.x, target.cols);
+		new_roi.y = max(0, new_roi.y);
+		new_roi.y = min(new_roi.y, target.rows);
+		int w = new_roi.x + new_roi.width;
+		w = max(0, w);
+		w = min(w, target.cols);
+		new_roi.width = w - new_roi.x;
+		int h = new_roi.y + new_roi.height;
+		h = max(0, h);
+		h = min(h, target.rows);
+		new_roi.height = h - new_roi.y;
+
+		/// Extract the searching image using mask
+		Mat mask = cv::Mat::zeros(target.rows, target.cols, CV_8U);
+		mask(new_roi) = 255;
+		Mat new_search;
+		target.copyTo(new_search,mask);
+		
+		/// Do the Matching and Normalize
+		Mat result;
+		matchTemplate(new_search, tmplate, result, match_method);
+		normalize(result, result, 0, 1, NORM_MINMAX, -1, Mat());
+		if (match_method == 0 || match_method == 1)
+			result = 1 - result;
+
+		/// find the possible regions
+		vector<Point>locs = getLocs(result);
+
+		/// return the highest possibility region
+		return getMaxloc(result, locs, prev_roi, tmplate, target);
+	}
+
+	/// Run the algorithm
+	bool runObjectTrackingAlgorithm (const cv::Mat& source, std::map<int, cv::Rect>& objects)
 	{
 		objects.clear();
 
 		//std::cout << std::string("This is a tracker implmented using Template Matching algorithm.") << std::endl;
-		m_frame_id++;
+		//m_frame_id++;
+		//printf("Frame %d\n", m_frame_id);
 
-		//
-		int th1 = 100, th2 = 180;
-		Mat edges,trackim;
-		GaussianBlur(image, trackim, Size(3, 3), 0, 0);
-		cvtColor(trackim, trackim, CV_BGR2GRAY);
-		convert2edge(trackim, edges);
-		//
+		/// convert ARGB image 2 RGB image  
+		Mat image;
+		if (source.channels() == 4)
+			cvtColor(source, image, CV_BGRA2BGR);
+		else
+			image = source.clone();
+
+		/// The target image and its edge image
+		Mat edges,gray_track_im;
+		cvtColor(image, gray_track_im, CV_BGR2GRAY);
+		convert2edge(gray_track_im, edges);
+				
+		/// the original frame templates
 		auto itr = m_active_objects.begin();
 		for ( ; itr != m_active_objects.end(); ++itr )
 		{
-			// Previous frame ROI position
-			cv::Rect roi= m_active_roi.at(itr->first);
-			
+			/// original template
 			Mat tmplate = itr->second;
-			GaussianBlur(tmplate, tmplate, Size(3, 3), 0, 0);
-			cvtColor(tmplate, tmplate, CV_BGR2GRAY);
+			cv::Rect roi = m_active_roi.at(itr->first);
+			Mat gray_tmplate;
+			cvtColor(tmplate, gray_tmplate, CV_BGR2GRAY);
 			Mat edged;
-			convert2edge(tmplate, edged);
+			convert2edge(gray_tmplate, edged);
 
-			//Create the result matrix
-			Mat result, result2;
-			int rc = trackim.cols - tmplate.cols + 1;
-			int rr = trackim.rows - tmplate.rows + 1;
-			result.create(rc, rr, CV_32FC1);
-			result2.create(rc, rr, CV_32FC1);
-			matchTemplate(trackim, tmplate, result, match_method);
-			matchTemplate(edges, edged, result2, match_method);
-			normalize(result, result, 0, 1, NORM_MINMAX, -1, Mat());
-			normalize(result2, result2, 0, 1, NORM_MINMAX, -1, Mat());
+			/// Previous frame ROI position & previous template
+			cv::Rect prev_roi = m_active_prev_roi.at(itr->first);
+
+			/// Template matching 2 find the most similar region; m1/m2: the original target andits edge image  
+			Rect m1rec = TMatch(image, tmplate, prev_roi);
+			Rect m2rec = TMatch(edges, edged, prev_roi);
+
+			/// Using the Gaussian weight of the distance 2 compare the regions
+			double s1 = getLocWeight(prev_roi, m1rec);
+			double s2 = getLocWeight(prev_roi, m2rec);
 			
-			if (match_method == CV_TM_SQDIFF || match_method == CV_TM_SQDIFF_NORMED)
+			/// comparison: the higher value means the region is closed to the previous frame's roi
+			Rect match_roi;
+			if (s1 > 0 && s2 > 0)
 			{
-				result = 1.0 - result;
-				result2 = 1.0 - result2;
+				if (s1 > s2)
+					match_roi = m1rec;
+				else
+					match_roi = m2rec;
 			}
+			else if (s1 > 0 && s2 < 0)
+				match_roi = m1rec;
+			else if (s2 > 0 && s1 < 0)
+				match_roi = m2rec;
 
-			// get the top 10 maximums from the first match
-			queue<Point> locs1,locs2;
-			maxLocs(result, locs1);
-			maxLocs(result2, locs2);
-			Mat img = trackim;
-			//double m1p = 1e-7,m2p=1e-7;
-			double m1p = 100000, m2p = 100000;
-			Rect m1rec,m2rec;
-			while (!locs1.empty())
+			/// update 
+			/// if the found regions are far away, do rematch or predict the possible region by using the moving vector 
+			if (s1 < 0 && s2 < 0)
 			{
-				Point tmploc = locs1.front();
-				Rect tmproi = Rect(tmploc, Point(tmploc.x + roi.width, tmploc.y + roi.height));
-				Mat tmp = img(tmproi).clone();
-				//double b=cvNorm(&tmplate.reshape(1), &tmp.reshape(1),CV_L2);
-				double dist = Dist(tmproi, roi);
-				if (dist < m1p)
-				{
-					m1p = dist;
-					m1rec = tmproi;
-				}
-				locs1.pop();
-			}
-			while (!locs2.empty())
-			{
-				Point matchLoc = locs2.front();
-				Rect tmproi = Rect(matchLoc, Point(matchLoc.x + roi.width, matchLoc.y + roi.height));
-				double dist = Dist(tmproi, roi);
-				if (dist < m2p)
-				{
-					m2p = dist;
-					m2rec = tmproi;
-				}
-				locs2.pop();
-			}
-			Mat m1 = img(m1rec);
-			Mat m2 = img(m2rec);
-			double p1= getPSNR(tmplate, m1);
-			double p2 = getPSNR(tmplate, m2);
-			Rect matchROI;
-			if (p1>p2)
-			//if (dis1 < dis2)
-				matchROI = m1rec;
-			else
-				matchROI = m2rec;
+				/// if the template region is missing in the current frame, the missing frame number adds 1
+				m_active_missing.at(itr->first) += 1;
+				
+				/// If the number of frame's missing template is > 4, do rematch
+				/// else use the moving vector obtained from the previous frame and the previous 2 frame 2 predict the region in the current frame  
+				Rect adj_roi;
+				if (m_active_missing.at(itr->first) > 4)
+					adj_roi = TMatch(image, tmplate, prev_roi);
+				else
+					adj_roi = getLinepts(prev_roi, m_active_pts_vector.at(itr->first));
 
-			objects.insert(std::make_pair(itr->first, matchROI));
-			auto itr2 = m_active_roi.find(itr->first);
-			itr2->second=matchROI;
-			Mat match = image;
-			match = match(matchROI);
-			auto itr3 = m_active_objects.find(itr->first);
-			itr3->second = match;
+				/// boundary check
+				adj_roi.x = max(-1, adj_roi.x);
+				adj_roi.x = min(adj_roi.x,image.cols);
+				adj_roi.y = max(-1, adj_roi.y);
+				adj_roi.y = min(adj_roi.y, image.rows);
+
+				/// draw + save tracking region
+				objects.insert(std::make_pair(itr->first, adj_roi));
+
+				/// update the roi 
+				m_active_prev_roi.at(itr->first) = adj_roi;
+
+				/// update the moving vector from the current frame and the previous frame 
+				m_active_pts_vector.at(itr->first) = getLinevec(prev_roi, adj_roi);
+			}
+			else if (s1 > 0 || s2 > 0 )
+			{
+				/// draw + save tracking region
+				objects.insert(std::make_pair(itr->first, match_roi));
+
+				/// update the roi 
+				m_active_prev_roi.at(itr->first) = match_roi;
+
+				/// update the moving vector from the current frame and the previous frame
+				m_active_pts_vector.at(itr->first) = getLinevec(prev_roi, match_roi);
+
+				/// if the template region is found, set the missing frame number 2 zero 
+				m_active_missing.at(itr->first)=0 ;
+			}
 		}
-		
 		return (objects.size() > 0);
 	}
 
 private:
-	//
-	int m_frame_id;
-	//
+
+	/// template matching method: 0/1: SQDIFF/Normalized-SQDIFF; 2/3: TM_CCORR/Normalized-TM_CCORR; 4/5: CCOEFF/Normalized-CCOEFF; 
 	int match_method;
-	//
+
+	/// the template roi in the start frame 
 	std::map<int, cv::Rect> m_active_roi;
 
+	/// the template roi in the previous frame 
+	std::map<int, cv::Rect> m_active_prev_roi;
+
+	/// the template moving vector 
+	std::map<int, cv::Point> m_active_pts_vector;
+
+	/// the frequency of missing template 
+	std::map<int, int> m_active_missing;
 };
 
 
