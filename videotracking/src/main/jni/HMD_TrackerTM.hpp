@@ -275,9 +275,6 @@ public:
 		Mat new_search;
 		target.copyTo(new_search,mask);
 
-		if (debug_flag)
-			checkim(new_search);
-
 		/// Do the Matching and Normalize
 		Mat weight;
 		matchTemplate(new_search, tmplate, weight, match_method);
@@ -394,8 +391,6 @@ public:
 			cv::Rect prev_roi = m_active_prev_roi.at(itr->first);
 			if (resampling)
 				rectResample(prev_roi, scale_ratio, 1);
-
-			debug_flag = (frame_id == 350 && itr->first == 4 || frame_id == 374 && itr->first == 2) ? true : false;
 
 			/// Template matching 2 find the most similar region; m1/m2: the original target andits edge image  
 			Rect m1rec = TMatch(image, tmplate, prev_roi);
