@@ -38,8 +38,7 @@ public:
 	TrackerTM() :  AbstractTracker()
 	{
 		match_method = 5;
-		resampling = true;
-		imsize = Point(320, 240);
+		imsize = Point(160, 120);
 		
 		//
 		frame_id = 224;
@@ -55,15 +54,12 @@ public:
 		if (obj_id >= 0)
 		{
 			/// Convert image from BGRA 2 BGR
-			Mat image = initImage(source); 
+			Mat image = initImage(source);
 			m_active_objects.at(obj_id) = image(obj_roi);
 			m_active_roi.insert(std::make_pair(obj_id, obj_roi));
 			m_active_prev_roi.insert(std::make_pair(obj_id, obj_roi));
 			m_active_pts_vector.insert(std::make_pair(obj_id, Point(0,0)));
 			m_active_missing.insert(std::make_pair(obj_id, 0));
-			/// return the image re-sampling ratio
-			scale_ratio = resampleRatio(source);
-			resampling = (scale_ratio.x == 1 && scale_ratio.y == 1) ? false : true;
 		}
 
 		return obj_id;
@@ -72,8 +68,8 @@ public:
 	/// calculate the distance between 2 regions
 	float getDist(const Rect &p, const Rect &q)
 	{
-		Point p1 = Point(cvRound(p.x + p.width * 0.5), cvRound(p.y + p.height * 0.5));
-		Point p2 = Point(cvRound(q.x + q.width * 0.5), cvRound(q.y + q.height * 0.5));
+		Point p1 = Point(p.x + p.width / 2, p.y + p.height / 2);
+		Point p2 = Point(q.x + q.width / 2, q.y + q.height / 2);
 		return getDist(p1, p2);
 	}
 
@@ -88,8 +84,10 @@ public:
 	double getSAD(const Mat& source, const Mat& target)
 	{
 		Scalar x = cv::sum(cv::abs(source - target));
-		double val = 0;
-		return val = (source.channels() == 1 || source.channels() == 1) ? x.val[0] : (x.val[0] + x.val[1] + x.val[2]) / 3;
+		if (source.channels()==1 || source.channels()==1)
+			return x.val[0];
+		else
+			return (x.val[0] + x.val[1] + x.val[2])/3;
 	}
 
 	/// calculate the moving vector from the current frame and the previous frame
@@ -148,10 +146,10 @@ public:
 		Point diff = Point(r1.x+r1.width/2,r1.y+r1.height/2) - Point(r2.x+r2.width/2, r2.y+r2.height/2);
 		
 		/// define the searching range
-		int sigma = cvRound((min(r1.width, r1.height)) * 0.5);
+		int sigma = (min(r1.width, r1.height)) / 2;
 		
 		/// calculate the distance between 2 points
-		double dist = getDist(Point(cvRound(r1.x + r1.width * 0.5), cvRound(r1.y + r1.height * 0.5)), Point(cvRound(r2.x + r2.width * 0.5), cvRound(r2.y + r2.height * 0.5)));
+		double dist = getDist(Point(r1.x + r1.width / 2, r1.y + r1.height / 2), Point(r2.x + r2.width / 2, r2.y + r2.height / 2));
 		
 		if (dist <= (3 * sigma))
 			return (1 / sqrt(2 * CV_PI * sigma * sigma)) * exp(double(-(diff.x*diff.x + diff.y*diff.y) / (2 * sigma * sigma)));
@@ -184,9 +182,6 @@ public:
 		double th = 0;
 		Rect rec;
 		
-		int x1 = cvRound(prev_roi.x + prev_roi.width * 0.5);
-		int y1 = cvRound(prev_roi.y + prev_roi.height * 0.5);
-
 		vector<double> v1(locs.size()), v2(locs.size()), v3(locs.size());
 		/// looping
 		for (int i = 0; i < locs.size(); i++)
@@ -198,15 +193,12 @@ public:
 			Rect roi = Rect(loc.x, loc.y, prev_roi.width, prev_roi.height);
 			v2.at(i) = getSAD(tmplate, target(roi));
 			// v3 is the distance weight; if the value is lower, it means that the region is closed to the compared one 
-			int x2 = cvRound(loc.x + prev_roi.width * 0.5);
-			int y2 = cvRound(loc.y + prev_roi.height * 0.5);
-			v3.at(i) = getDist(Point(x1,y1), Point(x2,y2));
+			v3.at(i) = getDist(loc, Point(prev_roi.x,prev_roi.y));
 
 		}
 		normalize(v2, v2, 0, 1, NORM_MINMAX, -1, Mat());
 		normalize(v3, v3, 0, 1, NORM_MINMAX, -1, Mat());
 
-		int id = 0;
 		for (int i = 0; i < locs.size(); i++)
 		{
 			/// total weight is the fusion weight; v1 is the template matching weight;  v2 is the SAD weight;  v3 is the distance weight;
@@ -214,7 +206,6 @@ public:
 			/// by comparing the fusion weight, the suitable region is found (the smallest value)
 			if (w > th)
 			{
-				id = i;
 				th = w;
 				rec = Rect(locs.at(i).x, locs.at(i).y, prev_roi.width, prev_roi.height);
 			}
@@ -229,19 +220,18 @@ public:
 		waitKey(0);
 	}
 
-	/// set search range of the target image (3 times larger than the template)
+	/// set search range of the target image (2.5 times larger than the template)
 	Rect searchArea(const Rect& roi)
 	{
-		/// Down-sampling scale ratio is ok at scale ratio 5 
-		double scale = 5;
+		int scale = 5;
 		Rect new_roi = roi;
 		int cx = cvRound(new_roi.x + new_roi.width * 0.5);
 		int cy = cvRound(new_roi.y + new_roi.height * 0.5);
 		int radius = cvRound(min(new_roi.width, new_roi.height) * 0.5);
 		new_roi.x = cvRound(cx - radius * scale * 0.5);
 		new_roi.y = cvRound(cy - radius * scale * 0.5);
-		new_roi.width = cvRound(scale * radius);
-		new_roi.height = cvRound(scale * radius);
+		new_roi.width = scale * radius;
+		new_roi.height = scale * radius;
 		return new_roi;
 	}
 
@@ -260,6 +250,7 @@ public:
 		h = min(h, target.rows);
 		roi.height = h - roi.y;
 	}
+
 	// Template Matching 
 	Rect TMatch(const Mat& target, const Mat& tmplate, const Rect prev_roi)
 	{
@@ -344,6 +335,15 @@ public:
 		return image;
 	}
 
+	/// check the image needs to be re-sampled or keeps the same size 
+	bool confirmResample(const Mat& source)
+	{
+		if (source.rows == imsize.y && source.cols == imsize.x)
+			return false;
+		else
+			return true;
+	}
+
 	/// Run the algorithm
 	bool runObjectTrackingAlgorithm (const cv::Mat& source, std::map<int, cv::Rect>& objects)
 	{
@@ -351,13 +351,16 @@ public:
 
 		//std::cout << std::string("This is a tracker implmented using Template Matching algorithm.") << std::endl;
 		frame_id++;
-		printf("Frame %d\n", frame_id);
 
 		/// image initialization (BGRA -> BGR )
 		Mat image = initImage(source);
 
-		/// check re-sampling is essential
-		if (resampling)
+		/// return the image re-sampling ratio
+		scale_ratio=resampleRatio(source);
+
+		/// return the image re-sampling ratio
+		bool flag = confirmResample(source);
+		if (flag)
 			/// down-sampling (1) 
 			imResample(image, scale_ratio, 1);
 
@@ -374,7 +377,7 @@ public:
 			Mat tmplate = itr->second;
 			cv::Rect roi = m_active_roi.at(itr->first);
 			
-			if (resampling)
+			if (flag)
 			{
 				/// down-sampling
 				imResample(tmplate, scale_ratio, 1);
@@ -387,9 +390,9 @@ public:
 			Mat edged;
 			convert2edge(gray_tmplate, edged);
 
-			/// Previous frame ROI position & downsampling
+			/// Previous frame ROI position & previous template
 			cv::Rect prev_roi = m_active_prev_roi.at(itr->first);
-			if (resampling)
+			if (flag)
 				rectResample(prev_roi, scale_ratio, 1);
 
 			/// Template matching 2 find the most similar region; m1/m2: the original target andits edge image  
@@ -409,7 +412,11 @@ public:
 
 				/// If the number of frame's missing template is > 4, do rematch
 				/// else use the moving vector obtained from the previous frame and the previous 2 frame 2 predict the region in the current frame  
-				Rect adj_roi = (m_active_missing.at(itr->first) > 4) ? TMatch(image, tmplate, prev_roi) : getLinepts(prev_roi, m_active_pts_vector.at(itr->first));
+				Rect adj_roi;
+				if (m_active_missing.at(itr->first) > 4)
+					adj_roi = TMatch(image, tmplate, prev_roi);
+				else
+					adj_roi = getLinepts(prev_roi, m_active_pts_vector.at(itr->first));
 
 				/// boundary check
 				adj_roi.x = max(0, adj_roi.x);
@@ -424,7 +431,7 @@ public:
 				match_roi = max(s1, s2) ? m1rec : m2rec;
 
 			/// Up-sampling
-			if (resampling)
+			if (flag)
 				rectResample(match_roi, scale_ratio, 0);
 
 			/// if the template region is found, set the missing frame number 2 zero 
@@ -451,9 +458,6 @@ private:
 
 	/// image re-sampling ratio
 	Point scale_ratio;
-
-	/// image re-sampling flag
-	bool resampling;
 
 	/// template matching method: 0/1: SQDIFF/Normalized-SQDIFF; 2/3: TM_CCORR/Normalized-TM_CCORR; 4/5: CCOEFF/Normalized-CCOEFF; 
 	int match_method;
