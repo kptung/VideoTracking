@@ -62,6 +62,83 @@ public:
 		return obj_id;
 	}
 
+	/// debug
+	void checkim(Mat& im, const Rect& roi)
+	{
+		rectangle(im, roi, Scalar(255, 255, 255));
+		namedWindow("Display window", WINDOW_AUTOSIZE);
+		imshow("Display window", im);
+		waitKey(0);
+	}
+
+	void checkim(const Mat& im)
+	{
+		namedWindow("Display window", WINDOW_AUTOSIZE);
+		imshow("Display window", im);
+		waitKey(0);
+	}
+
+	/// rectangle re-sampling: 0:up-sampling; 1:down-sampling
+	void rectResample(Rect& roi, const Point& ratio, const bool& resample_flag)
+	{
+		/// down-sampling
+		if (resample_flag)
+		{
+			roi.x /= ratio.x;
+			roi.y /= ratio.y;
+			roi.width /= ratio.x;
+			roi.height /= ratio.y;
+		}
+		/// up-sampling
+		else
+		{
+			roi.x *= ratio.x;
+			roi.y *= ratio.y;
+			roi.width *= ratio.x;
+			roi.height *= ratio.y;
+		}
+	}
+
+	/// image re-sampling: 0:up-sampling; 1:down-sampling
+	void imResample(Mat& image, const Point& ratio, const bool& resample_flag)
+	{
+		/// down-sampling or up-sampling
+		if (resample_flag)
+			cv::resize(image, image, Size(image.cols / ratio.x, image.rows / ratio.y));
+		//pyrDown(image, image, Size(image.cols / ratio.x, image.rows / ratio.y));
+		else
+			cv::resize(image, image, Size(image.cols * ratio.x, image.rows * ratio.y));
+		//pyrUp(image, image, Size(image.cols * ratio.x, image.rows * ratio.y));
+	}
+
+	/// calculating the image re-sampling ratio
+	Point resampleRatio(const Mat& source)
+	{
+		/// re-sampling ratio
+		Point ratio;
+		ratio.y = source.rows / imsize.y;
+		ratio.x = source.cols / imsize.x;
+		resampling = (ratio.x == 1 && ratio.y == 1) ? false : true;
+		return ratio;
+	}
+
+	/// boundary check
+	void boundaryCheck(Rect& roi, const Mat& target)
+	{
+		roi.x = max(0, roi.x);
+		roi.x = min(roi.x, target.cols - 1);
+		roi.y = max(0, roi.y);
+		roi.y = min(roi.y, target.rows - 1);
+		int w = roi.x + roi.width;
+		w = max(0, w);
+		w = min(w, target.cols);
+		roi.width = w - roi.x;
+		int h = roi.y + roi.height;
+		h = max(0, h);
+		h = min(h, target.rows);
+		roi.height = h - roi.y;
+	}
+
 	/// calculate the distance between 2 regions
 	float getDist(const Rect &p, const Rect &q)
 	{
@@ -75,6 +152,18 @@ public:
 	{
 		Point diff = p - q;
 		return cv::sqrt(float(diff.x*diff.x + diff.y*diff.y));
+	}
+
+	/// get the color difference
+	double getColordiff(const Mat& a, const Mat& b)
+	{
+		Mat m, n;
+		if (a.channels() > 1 && b.channels() > 1)
+		{
+			cvtColor(a, m, CV_BGR2Lab);
+			cvtColor(b, n, CV_BGR2Lab);
+		}
+		return (a.channels() > 1 && b.channels() > 1) ? cv::norm(m - n) : cv::norm(a - b);
 	}
 
 	/// obtain the sum of absolute difference (SAD) between 2 images 
@@ -105,12 +194,13 @@ public:
 	}
 
 	/// convert the image 2 its edge image
-	void convert2edge(const Mat& source, Mat& destination)
+	Mat convert2edge(const Mat& source)
 	{
 		/// initialization
 		int edge_flag = 3;
 		int th1 = 100, th2 = 200;
 		Mat gx, absgx, gy, absgy, dst;
+		Mat destination;
 
 		/// selection
 		switch (edge_flag)
@@ -132,6 +222,7 @@ public:
 		default:
 			break;
 		}
+		return destination;
 	}
 
 	/// the Gaussian weight of the distance between two regions
@@ -153,7 +244,7 @@ public:
 	vector<Point> getLocs(const Mat& src)
 	{
 		/// threshold
-		double maxValue = 0.7;
+		double maxValue = 0.75;
 		vector<Point> locs;
 		
 		for (int j = 0; j < src.rows; j++)
@@ -185,20 +276,25 @@ public:
 			Rect roi = Rect(loc.x, loc.y, prev_roi.width, prev_roi.height);
 			v2.at(i) = getSAD(tmplate, target(roi));
 			// v3 is the distance weight; if the value is lower, it means that the region is closed to the compared one 
-			int x2 = loc.x + cvRound(prev_roi.width * 0.46);
+			int x2 = loc.x + cvRound(prev_roi.width * 0.5);
 			int y2 = loc.y + cvRound(prev_roi.height * 0.5);
-			v3.at(i) = getDist(Point(x1,y1), Point(x2,y2));
+			v3.at(i) = getDist(Point(x1, y1), Point(x2, y2));
+			/// v3 is the color weight; if the color between the objects is similiar, the value is low
+			v4.at(i) = getColordiff(tmplate, target(roi));
 		}
-		//normalize(v1, v1, 0, 1, NORM_MINMAX, -1, Mat());
+		
 		normalize(v2, v2, 0, 1, NORM_MINMAX, -1, Mat());
 		normalize(v3, v3, 0, 1, NORM_MINMAX, -1, Mat());
-		/// 
+		normalize(v4, v4, 0, 1, NORM_MINMAX, -1, Mat());
+
+		/// looping
 		for (int i = 0; i < locs.size(); i++)
 		{
 			/// total weight w is the fusion weight; v1 is the template matching weight;  v2 is the SAD weight;  v3 is the distance weight;
 			v2.at(i) = 1 - v2.at(i);
 			v3.at(i) = 1 - v3.at(i);
-			w.at(i) = v1.at(i) + v2.at(i) + v3.at(i);
+			v4.at(i) = 1 - v4.at(i);
+			w.at(i) = v1.at(i) + v2.at(i) + v3.at(i) + v4.at(i);
 		}
 
 		/// get the max weight and its position
@@ -209,23 +305,15 @@ public:
 		//	checkim(target, Rect(locs.at(id).x, locs.at(id).y, prev_roi.width, prev_roi.height));
 		return Rect(locs.at(id).x, locs.at(id).y, prev_roi.width, prev_roi.height);
 	}
-	
-	void checkim(Mat& im, const Rect& roi)
-	{
-		rectangle(im, roi, Scalar(0, 0, 0));
-		namedWindow("Display window", WINDOW_AUTOSIZE);
-		imshow("Display window", im);
-		waitKey(0);
-	}
 
-	/// set search range of the target image (3 times larger than the template)
+	/// set search range of the target image (2.5 times larger than the template)
 	Rect searchArea(const Rect& roi)
 	{
 		/// Down-sampling scale ratio is ok at scale ratio 5 
-		double scale = 5;
+		double scale = 6;
 		Rect new_roi = roi;
-		int cx = cvRound(new_roi.x + new_roi.width * 0.5);
-		int cy = cvRound(new_roi.y + new_roi.height * 0.5);
+		int cx = new_roi.x + cvRound(new_roi.width * 0.5);
+		int cy = new_roi.y + cvRound(new_roi.height * 0.5);
 		int radius = cvRound(min(roi.width, roi.height) * 0.5);
 		new_roi.x = cx - radius * cvRound(scale * 0.5);
 		new_roi.y = cy - radius * cvRound(scale * 0.5);
@@ -234,23 +322,7 @@ public:
 		return new_roi;
 	}
 
-	void boundaryCheck(Rect& roi, const Mat& target)
-	{
-		roi.x = max(0, roi.x);
-		roi.x = min(roi.x, target.cols - 1);
-		roi.y = max(0, roi.y);
-		roi.y = min(roi.y, target.rows - 1);
-		int w = roi.x + roi.width;
-		w = max(0, w);
-		w = min(w, target.cols);
-		roi.width = w - roi.x;
-		int h = roi.y + roi.height;
-		h = max(0, h);
-		h = min(h, target.rows);
-		roi.height = h - roi.y;
-	}
-	
-	// Template Matching 
+	/// Template Matching 
 	Rect TMatch(const Mat& target, const Mat& tmplate, const Rect prev_roi)
 	{
 		/// set search range of the target image (3 times larger than the template)
@@ -282,50 +354,7 @@ public:
 		return getMaxloc(weight, locs, prev_roi, tmplate, new_search);
 	}
 
-	/// rectangle re-sampling: 0:up-sampling; 1:down-sampling
-	void rectResample(Rect& roi, const Point& ratio, const bool& resample_flag)
-	{
-		/// down-sampling
-		if (resample_flag)
-		{
-			roi.x /= ratio.x;
-			roi.y /= ratio.y;
-			roi.width /= ratio.x;
-			roi.height /= ratio.y;
-		}
-		/// up-sampling
-		else
-		{
-			roi.x *= ratio.x;
-			roi.y *= ratio.y;
-			roi.width *= ratio.x;
-			roi.height *= ratio.y;
-		}
-	}
-
-	/// image re-sampling: 0:up-sampling; 1:down-sampling
-	void imResample(Mat& image, const Point& ratio, const bool& resample_flag)
-	{
-		/// down-sampling or up-sampling
-		if (resample_flag)
-			cv::resize(image, image, Size(image.cols / ratio.x, image.rows / ratio.y));
-			//pyrDown(image, image, Size(image.cols / ratio.x, image.rows / ratio.y));
-		else
-			cv::resize(image, image, Size(image.cols * ratio.x, image.rows * ratio.y));
-			//pyrUp(image, image, Size(image.cols * ratio.x, image.rows * ratio.y));
-	}
-
-	/// calculating the image re-sampling ratio
-	Point resampleRatio(const Mat& source)
-	{
-		/// re-sampling ratio
-		Point ratio;
-		ratio.y = source.rows / imsize.y;
-		ratio.x = source.cols / imsize.x;
-		resampling = (ratio.x == 1 && ratio.y == 1) ? false : true;
-		return ratio;
-	}
-
+	
 	/// Run the algorithm
 	bool runObjectTrackingAlgorithm (const cv::Mat& source, std::map<int, cv::Rect>& objects)
 	{
@@ -345,10 +374,9 @@ public:
 			imResample(image, scale_ratio, 1);
 
 		/// The target image and its edge image
-		Mat edges,gray_track_im;
+		Mat gray_track_im;
 		cvtColor(image, gray_track_im, CV_BGR2GRAY);
-		convert2edge(gray_track_im, edges);
-				
+		Mat edges = convert2edge(gray_track_im);
 		
 		auto itr = m_active_objects.begin();
 		for ( ; itr != m_active_objects.end(); ++itr )
@@ -367,15 +395,13 @@ public:
 			/// Create gray-template and its edge image
 			Mat gray_tmplate;
 			cvtColor(tmplate, gray_tmplate, CV_BGR2GRAY);
-			Mat edged;
-			convert2edge(gray_tmplate, edged);
-
+			Mat edged = convert2edge(gray_tmplate);
 			/// Previous frame ROI position & down-sampling
 			cv::Rect prev_roi = m_active_prev_roi.at(itr->first);
 			if (resampling)
 				rectResample(prev_roi, scale_ratio, 1);
-
-			//debug_flag = (frame_id == 300 && itr->first == 2) ? true : false;
+			
+			//debug_flag = (frame_id == 408 && itr->first == 2) ? true : false;
 
 			/// Template matching 2 find the most similar region; m1/m2: the original target andits edge image  
 			Rect m1rec = TMatch(image, tmplate, prev_roi);
