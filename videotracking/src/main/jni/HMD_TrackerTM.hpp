@@ -154,14 +154,14 @@ public:
 		return cv::sqrt(float(diff.x*diff.x + diff.y*diff.y));
 	}
 
-	/// get the color difference
+	/// get the color difference by using CIE Luv color space
 	double getColordiff(const Mat& a, const Mat& b)
 	{
 		Mat m, n;
 		if (a.channels() > 1 && b.channels() > 1)
 		{
-			cvtColor(a, m, CV_BGR2Lab);
-			cvtColor(b, n, CV_BGR2Lab);
+			cvtColor(a, m, CV_BGR2Luv);
+			cvtColor(b, n, CV_BGR2Luv);
 		}
 		return (a.channels() > 1 && b.channels() > 1) ? cv::norm(m - n) : -1;
 	}
@@ -302,13 +302,13 @@ public:
 		}
 
 		/// get the max weight and its position
-		double minVal; double maxVal; Point minLoc; Point maxLoc;
-		minMaxLoc(w, &minVal, &maxVal, &minLoc, &maxLoc, Mat());
+		Point maxLoc;
+		minMaxLoc(w, NULL, NULL, NULL, &maxLoc, Mat());
 		int id = maxLoc.x;
 		return Rect(locs.at(id).x, locs.at(id).y, prev_roi.width, prev_roi.height);
 	}
 
-	/// set search range of the target image (2.5 times larger than the template)
+	/// set search range of the target image (3.1 times larger than the template)
 	Rect searchArea(const Rect& roi)
 	{
 		/// Down-sampling scale ratio is ok at scale ratio 5 
@@ -338,6 +338,8 @@ public:
 		mask(new_roi) = 255;
 		Mat new_search;
 		target.copyTo(new_search,mask);
+
+		if (debug_flag) checkim(new_search);
 
 		/// Do the Matching and Normalize
 		Mat weight;
@@ -400,6 +402,8 @@ public:
 			cv::Rect prev_roi = m_active_prev_roi.at(itr->first);
 			if (resampling)
 				rectResample(prev_roi, scale_ratio, 1);
+
+			//debug_flag = (frame_id == 544 && itr->first == 2) ? true : false;
 
 			/// Template matching 2 find the most similar region; m1/m2: the original target andits edge image  
 			Rect m1rec = TMatch(image, tmplate, prev_roi);
