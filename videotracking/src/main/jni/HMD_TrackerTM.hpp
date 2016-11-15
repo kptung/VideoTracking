@@ -38,7 +38,7 @@ public:
 	{
 		match_method = 5;
 		resampling = true;
-		imsize = Point(160, 120);
+		imsize = Point(80, 60);
 		
 		//
 		frame_id = 224;
@@ -163,7 +163,7 @@ public:
 			cvtColor(a, m, CV_BGR2Lab);
 			cvtColor(b, n, CV_BGR2Lab);
 		}
-		return (a.channels() > 1 && b.channels() > 1) ? cv::norm(m - n) : cv::norm(a - b);
+		return (a.channels() > 1 && b.channels() > 1) ? cv::norm(m - n) : -1;
 	}
 
 	/// obtain the sum of absolute difference (SAD) between 2 images 
@@ -282,7 +282,11 @@ public:
 			/// v3 is the color weight; if the color between the objects is similiar, the value is low
 			v4.at(i) = getColordiff(tmplate, target(roi));
 		}
-		
+		double maxv;
+		minMaxLoc(v4, NULL, &maxv, NULL, NULL, Mat());
+		for (int i = 0; i < v4.size(); i++)
+			v4.at(i) = (v4.at(i) == -1) ? maxv : v4.at(i);
+
 		normalize(v2, v2, 0, 1, NORM_MINMAX, -1, Mat());
 		normalize(v3, v3, 0, 1, NORM_MINMAX, -1, Mat());
 		normalize(v4, v4, 0, 1, NORM_MINMAX, -1, Mat());
@@ -301,8 +305,6 @@ public:
 		double minVal; double maxVal; Point minLoc; Point maxLoc;
 		minMaxLoc(w, &minVal, &maxVal, &minLoc, &maxLoc, Mat());
 		int id = maxLoc.x;
-		//if (debug_flag)
-		//	checkim(target, Rect(locs.at(id).x, locs.at(id).y, prev_roi.width, prev_roi.height));
 		return Rect(locs.at(id).x, locs.at(id).y, prev_roi.width, prev_roi.height);
 	}
 
@@ -310,7 +312,7 @@ public:
 	Rect searchArea(const Rect& roi)
 	{
 		/// Down-sampling scale ratio is ok at scale ratio 5 
-		double scale = 6;
+		double scale = 6.2;
 		Rect new_roi = roi;
 		int cx = new_roi.x + cvRound(new_roi.width * 0.5);
 		int cy = new_roi.y + cvRound(new_roi.height * 0.5);
@@ -336,9 +338,6 @@ public:
 		mask(new_roi) = 255;
 		Mat new_search;
 		target.copyTo(new_search,mask);
-
-		if (debug_flag)
-			checkim(new_search,prev_roi);
 
 		/// Do the Matching and Normalize
 		Mat weight;
@@ -391,17 +390,16 @@ public:
 				imResample(tmplate, scale_ratio, 1);
 				rectResample(roi, scale_ratio, 1);
 			}
-			
+
 			/// Create gray-template and its edge image
 			Mat gray_tmplate;
 			cvtColor(tmplate, gray_tmplate, CV_BGR2GRAY);
 			Mat edged = convert2edge(gray_tmplate);
+			
 			/// Previous frame ROI position & down-sampling
 			cv::Rect prev_roi = m_active_prev_roi.at(itr->first);
 			if (resampling)
 				rectResample(prev_roi, scale_ratio, 1);
-			
-			//debug_flag = (frame_id == 408 && itr->first == 2) ? true : false;
 
 			/// Template matching 2 find the most similar region; m1/m2: the original target andits edge image  
 			Rect m1rec = TMatch(image, tmplate, prev_roi);
