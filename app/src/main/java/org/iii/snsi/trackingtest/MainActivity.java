@@ -1,96 +1,182 @@
 package org.iii.snsi.trackingtest;
 
-import android.graphics.Bitmap;
-import android.graphics.Canvas;
-import android.graphics.Color;
-import android.graphics.Paint;
-import android.graphics.BitmapFactory;
-import android.support.v7.app.AppCompatActivity;
+import android.app.Activity;
+import android.graphics.Rect;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
+import android.util.DisplayMetrics;
+import android.view.SurfaceHolder;
+import android.view.SurfaceView;
+import android.view.View;
+import android.view.Window;
+import android.view.WindowManager;
+import android.widget.Button;
 
-import java.nio.ByteBuffer;
 import org.iii.snsi.videotracking.NativeTracking;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends Activity{
 
-	private DisplayScreen displayScreen;
-	private Bitmap bitmap;
+	// Button initialization
+	private Button cameraButton;
+	private Button clearButton;
+	private Button saveButton;
+	private Button trackButton;
+
+	// Thread initialization
 	private Thread drawThread;
+	private SurfaceView surfaceView;
+	private OldCamera mCamera;
 	private boolean threadFlag;
-	private int resIdBase;
-	private int resId;
+	private int mScreenHeight;
+	private int mScreenWidth;
+
+	// Tracking initialization
 	private long handle;
 	private NativeTracking tracker = new NativeTracking();
-	private static final int totalFrames = 100;
+	private boolean trackflag = false;
+	private boolean saveflag = false;
+	private TouchView mView;
+	private Rect rec = new Rect();
+	private byte[] pixels;
+	int bmapWidth;
+	int bmapHeight;
+	float wRatio;
+	float hRatio;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
+
+		//Log.i(TAG, "onCreate()");
+		requestWindowFeature(Window.FEATURE_NO_TITLE);
+		getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
+
+		// display our (only) XML layout - Views already ordered
 		setContentView(R.layout.activity_main);
-		displayScreen = (DisplayScreen)findViewById(R.id.surfaceView);
-		resIdBase = R.raw.frame_0001;
-		resId = 223;
+
+		// according to device screen size 2 get the window width and height to display buttons
+		DisplayMetrics displaymetrics = new DisplayMetrics();
+		getWindowManager().getDefaultDisplay().getMetrics(displaymetrics);
+		mScreenHeight = displaymetrics.heightPixels;
+		mScreenWidth = displaymetrics.widthPixels;
+
+		// Show camera
+		mCamera = new OldCamera();
+		bmapWidth=mCamera.getWidth();
+		bmapHeight=mCamera.getHeight();
+		wRatio=(float)bmapWidth/mScreenWidth;
+		hRatio=(float)bmapHeight/mScreenHeight;
+		/// draw camera view @ this surfaceview
+		surfaceView = (SurfaceView)findViewById(R.id.surfaceView);
+
+		/// button initialization
+		cameraButton = (Button)findViewById(R.id.button1);
+		clearButton = (Button)findViewById(R.id.button2);
+		saveButton = (Button)findViewById(R.id.button3);
+		trackButton = (Button)findViewById(R.id.button4);
+
+		cameraButton.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				mCamera.openCamera();
+				SurfaceHolder holder = surfaceView.getHolder();
+				mCamera.setSurfaceHolder(holder);
+				mCamera.setCallbackFunction(new OldCamera.CallbackFrameListener(){
+					@Override
+					public void onCallback(byte[] data) {
+						pixels=data;
+					}
+				});
+				mCamera.startPreview(true);
+
+			}
+		});
+
+		clearButton.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				mView.setmLeftTopPosX(0);
+				mView.setmLeftTopPosY(0);
+				mView.setmRightTopPosX(0);
+				mView.setmRightTopPosY(0);
+				mView.setmLeftBottomPosX(0);
+				mView.setmLeftBottomPosY(0);
+				mView.setmRightBottomPosX(0);
+				mView.setmRightBottomPosY(0);
+			}
+		});
+
+		saveButton.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				saveflag=true;
+			}
+		});
+
+		trackButton.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				trackflag=true;
+			}
+		});
+
 		handle = tracker.createHandle();
-		
+
+		mView = (TouchView) findViewById(R.id.left_top_view);
+		/// calcualte the rect moving distance
+		rec.set((int) ((double) mScreenWidth * .85),
+				(int) ((double) mScreenHeight * .10),
+				(int) ((double) mScreenWidth * .85),
+				(int) ((double) mScreenHeight * .70));
+		/// set the rect position for boundary checking
+		mView.setRec(rec);
+
 		drawThread = new Thread(new Runnable(){
 			@Override
 			public void run(){
 				while(threadFlag){
-					if(resId==223){
-						bitmap = BitmapFactory.decodeResource(getResources(),
-							resIdBase + resId);
-
-						//calculate how many bytes our image consists of.
-						int width = bitmap.getWidth();
-						int height = bitmap.getHeight();
-						int bytes = bitmap.getByteCount();
-						//int bytes = width*height*4;
-						// Create a new buffer
-						ByteBuffer buffer = ByteBuffer.allocate(bytes);
-						// Move the byte data to the buffer
-						bitmap.copyPixelsToBuffer(buffer);
-						// Get the underlying array containing the data.
-						byte[] pixels = buffer.array();
-
-						float wr = (float) width / 320.0f;
-						float hr = (float) height / 240.0f;
-
-						// Specify a tracking target
-						int[] rects = new int[4];
-						rects[0] = (int) (120.0f * wr); // x, left
-						rects[1] = (int) (150.0f * hr); // y, top
-						rects[2] = (int) (52.0f * wr); // w
-						rects[3] = (int) (45.0f * hr); // h
-						tracker.initTrackingObjects(handle, pixels, width, height, rects);
-
-						int right = rects[0] + rects[2];
-						int bottom = rects[1] + rects[3];
-						// top, left, bottom, right
-						displayScreen.setRect(rects[1], rects[0], bottom, right);
-						displayScreen.setBitmap(bitmap);
+					if(saveflag) {
+						// rect down-sampling : ( OpenCV Rect (left-top x, left-top y, width, height))
+						int lx = Math.round(mView.getmLeftTopPosX() );
+						int ly = Math.round(mView.getmLeftTopPosY() * hRatio);
+						int width=Math.round(mView.getmRightTopPosX() - mView.getmLeftTopPosX());
+						int height=Math.round(mView.getmLeftBottomPosY() - mView.getmLeftTopPosY());
+						int[] rects = new int [4];
+						rects[0] = Math.round(lx * wRatio);
+						rects[1] = Math.round(ly * hRatio);
+						rects[2] = Math.round(width * wRatio);
+						rects[3] = Math.round(height * hRatio);
+						// init tracking
+						tracker.initTrackingObjects(handle, pixels, bmapWidth, bmapHeight, rects);
+						saveflag=false;
 					}
-					else{
-						bitmap = BitmapFactory.decodeResource(getResources(),
-							resIdBase + resId);
-
-						int width = bitmap.getWidth();
-						int height = bitmap.getHeight();
-						int bytes = width*height*4;
-						ByteBuffer buffer = ByteBuffer.allocate(bytes);
-						bitmap.copyPixelsToBuffer(buffer);
-						byte[] pixels = buffer.array();
-
+					if(trackflag){
+						/// tracking
 						int[] rects = tracker.processTracking(handle, pixels);
-						if (rects.length == 5){
-							int right = rects[1] + rects[3];
-							int bottom = rects[2] + rects[4];
-							displayScreen.setRect(rects[2], rects[1], bottom, right);
+						// rect up-sampling
+						if (rects.length == 5) {
+							int lx=rects[1];
+							int ly=rects[2];
+							int width=rects[3];
+							int height=rects[4];
+							mView.setmLeftTopPosX(lx / wRatio);
+							mView.setmLeftTopPosY(ly / hRatio);
+							mView.setmRightTopPosX((lx + width)/wRatio);
+							mView.setmRightTopPosY(ly / hRatio);
+							mView.setmLeftBottomPosX(lx / wRatio);
+							mView.setmLeftBottomPosY((ly + height)/hRatio);
+							mView.setmRightBottomPosX((lx + width) / wRatio);
+							mView.setmRightBottomPosY((ly + height) / hRatio);
+							/// update UI
+							Message msg = new Message();
+							msg.what = 1;
+							mHandler.sendMessage(msg);
 						}
-						displayScreen.setBitmap(bitmap);
+
+
 					}
 
-					displayScreen.paint();
-					resId = 223 + (resId - 222)%50;
 					sleep(10);
 				}
 				tracker.releaseHandle(handle);
@@ -98,14 +184,28 @@ public class MainActivity extends AppCompatActivity {
 		});
 		threadFlag = true;
 		drawThread.start();
+
 	}
+
+	private Handler mHandler = new Handler(){
+		@Override
+		public void handleMessage(Message msg) {
+			switch(msg.what){
+				case 1:
+					mView.setVisibility(View.INVISIBLE);
+					mView.setVisibility(View.VISIBLE);
+					break;
+			}
+		}
+	};
 
 	@Override
 	protected void onDestroy() {
 
 		// start another activity
 		super.onDestroy();
-
+		mCamera.closeCamera();
+		threadFlag = false;
 	}
 
 	public void sleep(long time){
@@ -115,4 +215,6 @@ public class MainActivity extends AppCompatActivity {
 			e.printStackTrace();
 		}
 	}
+
+
 }

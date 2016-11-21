@@ -2,13 +2,57 @@
 <FrameLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
+	android:orientation="vertical"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
     tools:context="org.iii.snsi.trackingtest.MainActivity">
 
+	<SurfaceView
+		android:layout_width="match_parent"
+		android:layout_height="match_parent"
+		android:id="@+id/surfaceView"/>
 
-    <org.iii.snsi.trackingtest.DisplayScreen
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:id="@+id/surfaceView"/>
+	<org.iii.snsi.trackingtest.TouchView android:id="@+id/left_top_view"
+		android:layout_width="fill_parent" android:layout_height="fill_parent">
+	</org.iii.snsi.trackingtest.TouchView>
+
+	<LinearLayout
+		android:orientation="horizontal"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:layout_gravity="bottom">
+		<Button
+			android:id="@+id/button1"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:background="#0000FF"
+			android:text="@string/button1_name"
+			/>
+
+		<Button
+			android:id="@+id/button2"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:background="#00FF00"
+			android:text="@string/button2_name"
+			/>
+
+		<Button
+			android:id="@+id/button3"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:background="#FF0000"
+			android:text="@string/button3_name"
+			/>
+
+		<Button
+			android:id="@+id/button4"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:background="#FFFF00"
+			android:text="@string/button4_name"
+			/>
+
+	</LinearLayout>
+
 </FrameLayout>

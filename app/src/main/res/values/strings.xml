@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">TrackingLib</string>
+    <string name="button1_name">Camera</string>
+    <string name="button2_name">Clear</string>
+    <string name="button3_name">Save</string>
+    <string name="button4_name">Tracking</string>
 </resources>
