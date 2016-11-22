@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.util.DisplayMetrics;
+import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
@@ -15,11 +16,12 @@ import android.widget.Button;
 
 import org.iii.snsi.videotracking.NativeTracking;
 
+import static android.content.ContentValues.TAG;
+
 public class MainActivity extends Activity{
 
 	// Button initialization
 	private Button cameraButton;
-	private Button clearButton;
 	private Button saveButton;
 	private Button trackButton;
 
@@ -72,13 +74,13 @@ public class MainActivity extends Activity{
 
 		/// button initialization
 		cameraButton = (Button)findViewById(R.id.button1);
-		clearButton = (Button)findViewById(R.id.button2);
-		saveButton = (Button)findViewById(R.id.button3);
-		trackButton = (Button)findViewById(R.id.button4);
+		saveButton = (Button)findViewById(R.id.button2);
+		trackButton = (Button)findViewById(R.id.button3);
 
 		cameraButton.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View v) {
+				Log.i(TAG, "Open camera");
 				mCamera.openCamera();
 				SurfaceHolder holder = surfaceView.getHolder();
 				mCamera.setSurfaceHolder(holder);
@@ -89,27 +91,13 @@ public class MainActivity extends Activity{
 					}
 				});
 				mCamera.startPreview(true);
-
-			}
-		});
-
-		clearButton.setOnClickListener(new View.OnClickListener() {
-			@Override
-			public void onClick(View v) {
-				mView.setmLeftTopPosX(0);
-				mView.setmLeftTopPosY(0);
-				mView.setmRightTopPosX(0);
-				mView.setmRightTopPosY(0);
-				mView.setmLeftBottomPosX(0);
-				mView.setmLeftBottomPosY(0);
-				mView.setmRightBottomPosX(0);
-				mView.setmRightBottomPosY(0);
 			}
 		});
 
 		saveButton.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View v) {
+				Log.i(TAG, "save roi position");
 				saveflag=true;
 			}
 		});
@@ -117,6 +105,7 @@ public class MainActivity extends Activity{
 		trackButton.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View v) {
+				Log.i(TAG, "strat tracking");
 				trackflag=true;
 			}
 		});
@@ -125,10 +114,10 @@ public class MainActivity extends Activity{
 
 		mView = (TouchView) findViewById(R.id.left_top_view);
 		/// calcualte the rect moving distance
-		rec.set((int) ((double) mScreenWidth * .85),
-				(int) ((double) mScreenHeight * .10),
-				(int) ((double) mScreenWidth * .85),
-				(int) ((double) mScreenHeight * .70));
+		rec.set((int) ((double) mScreenWidth),
+				(int) ((double) mScreenHeight),
+				(int) ((double) mScreenWidth),
+				(int) ((double) mScreenHeight));
 		/// set the rect position for boundary checking
 		mView.setRec(rec);
 
@@ -162,10 +151,10 @@ public class MainActivity extends Activity{
 							int height=rects[4];
 							mView.setmLeftTopPosX(lx / wRatio);
 							mView.setmLeftTopPosY(ly / hRatio);
-							mView.setmRightTopPosX((lx + width)/wRatio);
+							mView.setmRightTopPosX((lx + width) / wRatio);
 							mView.setmRightTopPosY(ly / hRatio);
 							mView.setmLeftBottomPosX(lx / wRatio);
-							mView.setmLeftBottomPosY((ly + height)/hRatio);
+							mView.setmLeftBottomPosY((ly + height) / hRatio);
 							mView.setmRightBottomPosX((lx + width) / wRatio);
 							mView.setmRightBottomPosY((ly + height) / hRatio);
 							/// update UI
@@ -173,10 +162,7 @@ public class MainActivity extends Activity{
 							msg.what = 1;
 							mHandler.sendMessage(msg);
 						}
-
-
 					}
-
 					sleep(10);
 				}
 				tracker.releaseHandle(handle);

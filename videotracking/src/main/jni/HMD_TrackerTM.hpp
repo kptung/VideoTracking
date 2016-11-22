@@ -39,10 +39,6 @@ public:
 		match_method = 5;
 		resampling = true;
 		imsize = Point(80, 60);
-		
-		//
-		frame_id = 224;
-		debug_flag = false;
 	}
 
 	/// add a tracking obj
@@ -60,22 +56,6 @@ public:
 		}
 
 		return obj_id;
-	}
-
-	/// debug
-	void checkim(Mat& im, const Rect& roi)
-	{
-		rectangle(im, roi, Scalar(255, 255, 255));
-		namedWindow("Display window", WINDOW_AUTOSIZE);
-		imshow("Display window", im);
-		waitKey(0);
-	}
-
-	void checkim(const Mat& im)
-	{
-		namedWindow("Display window", WINDOW_AUTOSIZE);
-		imshow("Display window", im);
-		waitKey(0);
 	}
 
 	/// rectangle re-sampling: 0:up-sampling; 1:down-sampling
@@ -105,10 +85,8 @@ public:
 		/// down-sampling or up-sampling
 		if (resample_flag)
 			cv::resize(image, image, Size(image.cols / ratio.x, image.rows / ratio.y));
-		//pyrDown(image, image, Size(image.cols / ratio.x, image.rows / ratio.y));
 		else
 			cv::resize(image, image, Size(image.cols * ratio.x, image.rows * ratio.y));
-		//pyrUp(image, image, Size(image.cols * ratio.x, image.rows * ratio.y));
 	}
 
 	/// calculating the image re-sampling ratio
@@ -142,8 +120,8 @@ public:
 	/// calculate the distance between 2 regions
 	float getDist(const Rect &p, const Rect &q)
 	{
-		Point p1 = Point(cvRound(p.x + p.width * 0.5), cvRound(p.y + p.height * 0.5));
-		Point p2 = Point(cvRound(q.x + q.width * 0.5), cvRound(q.y + q.height * 0.5));
+		Point p1 = Point(p.x + cvRound(p.width >> 1), p.y + cvRound(p.height >> 1));
+		Point p2 = Point(q.x + cvRound(q.width >> 1), q.y + cvRound(q.height >> 1));
 		return getDist(p1, p2);
 	}
 
@@ -151,7 +129,7 @@ public:
 	float getDist(const Point &p, const Point &q)
 	{
 		Point diff = p - q;
-		return cv::sqrt(float(diff.x*diff.x + diff.y*diff.y));
+		return cv::sqrt(float(diff.x * diff.x + diff.y * diff.y));
 	}
 
 	/// get the color difference by using CIE Luv color space
@@ -229,13 +207,13 @@ public:
 	double getLocWeight(const Rect& r1, const Rect& r2)
 	{
 		/// initialization
-		Point diff = Point(r1.x+r1.width/2,r1.y+r1.height/2) - Point(r2.x+r2.width/2, r2.y+r2.height/2);
+		Point diff = Point(r1.x + cvRound(r1.width >> 1), r1.y + cvRound(r1.height >> 1)) - Point(r2.x + cvRound(r2.width >> 1), r2.y + cvRound(r2.height >> 1));
 		
 		/// define the searching range
-		int sigma = cvRound((min(r1.width, r1.height)) * 0.5);
+		int sigma = cvRound((min(r1.width, r1.height)) >> 1);
 		
 		/// calculate the distance between 2 points
-		double dist = getDist(Point(cvRound(r1.x + r1.width * 0.5), cvRound(r1.y + r1.height * 0.5)), Point(cvRound(r2.x + r2.width * 0.5), cvRound(r2.y + r2.height * 0.5)));
+		double dist = getDist(Point(r1.x + cvRound(r1.width >> 1), r1.y + cvRound(r1.height >> 1)), Point(r2.x + cvRound(r2.width >> 1), r2.y + cvRound(r2.height >> 1)));
 		
 		return (dist <= (3 * sigma)) ? (1 / sqrt(2 * CV_PI * sigma * sigma)) * exp(double(-(diff.x*diff.x + diff.y*diff.y) / (2 * sigma * sigma))) : -1;
 	}
@@ -262,8 +240,11 @@ public:
 	Rect getMaxloc(const Mat& weight, const vector<Point>& locs, const Rect& prev_roi, const Mat& tmplate, Mat& target)
 	{
 		/// predict the possible roi & its center
-		int x1 = prev_roi.x + cvRound(prev_roi.width * 0.5);
-		int y1 = prev_roi.y + cvRound(prev_roi.height * 0.5);
+		int x1 = prev_roi.x + cvRound(prev_roi.width >> 1);
+		int y1 = prev_roi.y + cvRound(prev_roi.height >> 1);
+
+		// calculate the pHash value of the template
+		//String s1 = getpHashValue(tmplate);
 
 		vector<double> v1(locs.size()), v2(locs.size()), v3(locs.size()), v4(locs.size()), w(locs.size());
 		/// looping
@@ -276,12 +257,13 @@ public:
 			Rect roi = Rect(loc.x, loc.y, prev_roi.width, prev_roi.height);
 			v2.at(i) = getSAD(tmplate, target(roi));
 			// v3 is the distance weight; if the value is lower, it means that the region is closed to the compared one 
-			int x2 = loc.x + cvRound(prev_roi.width * 0.5);
-			int y2 = loc.y + cvRound(prev_roi.height * 0.5);
+			int x2 = loc.x + cvRound(prev_roi.width >> 1);
+			int y2 = loc.y + cvRound(prev_roi.height >> 1);
 			v3.at(i) = getDist(Point(x1, y1), Point(x2, y2));
-			/// v3 is the color weight; if the color between the objects is similiar, the value is low
+			/// v4 is the color weight; if the image between the objects is similiar, the value is low
 			v4.at(i) = getColordiff(tmplate, target(roi));
 		}
+		
 		double maxv;
 		minMaxLoc(v4, NULL, &maxv, NULL, NULL, Mat());
 		for (int i = 0; i < v4.size(); i++)
@@ -295,16 +277,14 @@ public:
 		for (int i = 0; i < locs.size(); i++)
 		{
 			/// total weight w is the fusion weight; v1 is the template matching weight;  v2 is the SAD weight;  v3 is the distance weight;
-			v2.at(i) = 1 - v2.at(i);
-			v3.at(i) = 1 - v3.at(i);
-			v4.at(i) = 1 - v4.at(i);
+			v1.at(i) = 1 - v1.at(i);
 			w.at(i) = v1.at(i) + v2.at(i) + v3.at(i) + v4.at(i);
 		}
 
 		/// get the max weight and its position
-		Point maxLoc;
-		minMaxLoc(w, NULL, NULL, NULL, &maxLoc, Mat());
-		int id = maxLoc.x;
+		Point minLoc;
+		minMaxLoc(w, NULL, NULL, &minLoc, NULL, Mat());
+		int id = minLoc.x;
 		return Rect(locs.at(id).x, locs.at(id).y, prev_roi.width, prev_roi.height);
 	}
 
@@ -312,15 +292,15 @@ public:
 	Rect searchArea(const Rect& roi)
 	{
 		/// Down-sampling scale ratio is ok at scale ratio 5 
-		double scale = 6.2;
+		double range = 6.2;
 		Rect new_roi = roi;
-		int cx = new_roi.x + cvRound(new_roi.width * 0.5);
-		int cy = new_roi.y + cvRound(new_roi.height * 0.5);
-		int radius = cvRound(min(roi.width, roi.height) * 0.5);
-		new_roi.x = cx - radius * cvRound(scale * 0.5);
-		new_roi.y = cy - radius * cvRound(scale * 0.5);
-		new_roi.width = cvRound(scale * radius);
-		new_roi.height = cvRound(scale * radius);
+		int cx = new_roi.x + cvRound(new_roi.width >> 1);
+		int cy = new_roi.y + cvRound(new_roi.height >> 1);
+		int radius = cvRound(min(roi.width, roi.height) >> 1);
+		new_roi.x = cx - radius * cvRound(range * 0.5);
+		new_roi.y = cy - radius * cvRound(range * 0.5);
+		new_roi.width = cvRound(range * radius);
+		new_roi.height = cvRound(range * radius);
 		return new_roi;
 	}
 
@@ -338,8 +318,6 @@ public:
 		mask(new_roi) = 255;
 		Mat new_search;
 		target.copyTo(new_search,mask);
-
-		if (debug_flag) checkim(new_search);
 
 		/// Do the Matching and Normalize
 		Mat weight;
@@ -360,8 +338,6 @@ public:
 	bool runObjectTrackingAlgorithm (const cv::Mat& source, std::map<int, cv::Rect>& objects)
 	{
 		objects.clear();
-
-		frame_id++;
 
 		/// image initialization
 		Mat image = source.clone();
@@ -484,8 +460,8 @@ private:
 	std::map<int, int> m_active_missing;
 
 	/// debug
-	int frame_id;
-	bool debug_flag;
+	//int frame_id;
+	//bool debug_flag;
 };
 
 

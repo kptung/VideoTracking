@@ -33,7 +33,7 @@
 			android:id="@+id/button2"
 			android:layout_width="wrap_content"
 			android:layout_height="wrap_content"
-			android:background="#00FF00"
+			android:background="#FF0000"
 			android:text="@string/button2_name"
 			/>
 
@@ -41,16 +41,8 @@
 			android:id="@+id/button3"
 			android:layout_width="wrap_content"
 			android:layout_height="wrap_content"
-			android:background="#FF0000"
-			android:text="@string/button3_name"
-			/>
-
-		<Button
-			android:id="@+id/button4"
-			android:layout_width="wrap_content"
-			android:layout_height="wrap_content"
 			android:background="#FFFF00"
-			android:text="@string/button4_name"
+			android:text="@string/button3_name"
 			/>
 
 	</LinearLayout>

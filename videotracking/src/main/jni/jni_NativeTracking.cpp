@@ -8,6 +8,13 @@
 
 #include "HMD_AbstractTracker.hpp"
 
+#include <vector>
+#include <string>
+#include <sstream>
+#include <fstream>
+#include <iostream>
+#include <iomanip>
+
 #define LOG_TAG "JNI_NativeTracking"
 #define LOGD(...) ((void)__android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__))
 
@@ -72,9 +79,6 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_initT
       // Rect data (Rect)
       Rect rec = Rect((int)jrectsArrayData[0], (int)jrectsArrayData[1], (int)jrectsArrayData[2], (int)jrectsArrayData[3]);
       jidsArrayData[0] = SetTrackingTarget((T_HANDLE)jhandle, image, rec);
-
-      //rectangle(image, rec, Scalar(255, 0, 0), 1, 8);
-      //imwrite( "/sdcard/output/test.png", image);
 
       env->ReleaseByteArrayElements(jimage, frame, 0);
       env->ReleaseIntArrayElements(jrects, jrectsArrayData, 0);
@@ -185,7 +189,14 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_proce
 
       if(JNI_DBG)
           LOGD("RunTargetTracking");
+      double t = (double)getTickCount();
       RunTargetTracking((T_HANDLE)jhandle, image, results);
+      t = ((double)getTickCount() - t) / getTickFrequency();
+      //
+      ofstream out;
+      char *ptimefile_name = "/sdcard/output/ptime.csv";
+      out.open(ptimefile_name, ios::app);
+      out << t * 1000 << endl;
 
       // Remove map to int[]
       int* buf_result = new int[results.size() * 5];
