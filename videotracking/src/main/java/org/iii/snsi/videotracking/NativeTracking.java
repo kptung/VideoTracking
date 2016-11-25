@@ -70,19 +70,6 @@ public class NativeTracking {
 	}
 
 	/**
-	 * Processing Camshit to track rectangles
-	 *
-	 * @param image The NV21 image.
-	 * @param rects The hash map to save results.
-	 * @return Return false if error occured, otherwise return true.
-	 */
-	public boolean processTracking(byte[] image,
-			HashMap<Integer, Rect> rects) {
-		return true;
-		//return processTrackingO(handle, image, rects);
-	}
-
-	/**
 	 * The function to release Tracking algorithm
 	 */
 	public void releaseHandle() {
