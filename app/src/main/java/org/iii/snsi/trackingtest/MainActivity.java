@@ -110,7 +110,7 @@ public class MainActivity extends Activity{
 			}
 		});
 
-		handle = tracker.createHandle();
+		//handle = tracker.createHandle();
 
 		mView = (TouchView) findViewById(R.id.left_top_view);
 		/// calcualte the rect moving distance
@@ -137,12 +137,12 @@ public class MainActivity extends Activity{
 						rects[2] = Math.round(width * wRatio);
 						rects[3] = Math.round(height * hRatio);
 						// init tracking
-						tracker.initTrackingObjects(handle, pixels, bmapWidth, bmapHeight, rects);
+						tracker.initTrackingObjects(pixels, bmapWidth, bmapHeight, rects);
 						saveflag=false;
 					}
 					if(trackflag){
 						/// tracking
-						int[] rects = tracker.processTracking(handle, pixels);
+						int[] rects = tracker.processTracking(pixels);
 						// rect up-sampling
 						if (rects.length == 5) {
 							int lx=rects[1];
@@ -165,7 +165,7 @@ public class MainActivity extends Activity{
 					}
 					sleep(10);
 				}
-				tracker.releaseHandle(handle);
+				tracker.releaseHandle();
 			}
 		});
 		threadFlag = true;
