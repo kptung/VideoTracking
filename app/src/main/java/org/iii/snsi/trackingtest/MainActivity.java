@@ -35,7 +35,7 @@ public class MainActivity extends Activity{
 
 	// Tracking initialization
 	private long handle;
-	private NativeTracking tracker = new NativeTracking();
+	private NativeTracking tracker;
 	private boolean trackflag = false;
 	private boolean saveflag = false;
 	private TouchView mView;
@@ -51,6 +51,8 @@ public class MainActivity extends Activity{
 		super.onCreate(savedInstanceState);
 
 		//Log.i(TAG, "onCreate()");
+		tracker= new NativeTracking();
+
 		requestWindowFeature(Window.FEATURE_NO_TITLE);
 		getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
 
@@ -127,15 +129,16 @@ public class MainActivity extends Activity{
 				while(threadFlag){
 					if(saveflag) {
 						// rect down-sampling : ( OpenCV Rect (left-top x, left-top y, width, height))
-						int lx = Math.round(mView.getmLeftTopPosX() );
-						int ly = Math.round(mView.getmLeftTopPosY() * hRatio);
+						int lx = Math.round(mView.getmLeftTopPosX());
+						int ly = Math.round(mView.getmLeftTopPosY());
 						int width=Math.round(mView.getmRightTopPosX() - mView.getmLeftTopPosX());
 						int height=Math.round(mView.getmLeftBottomPosY() - mView.getmLeftTopPosY());
-						int[] rects = new int [4];
-						rects[0] = Math.round(lx * wRatio);
-						rects[1] = Math.round(ly * hRatio);
-						rects[2] = Math.round(width * wRatio);
-						rects[3] = Math.round(height * hRatio);
+						int[] rects = new int [5];
+                        rects[0] = 0;
+						rects[1] = Math.round(lx * wRatio);
+						rects[2] = Math.round(ly * hRatio);
+						rects[3] = Math.round(width * wRatio);
+						rects[4] = Math.round(height * hRatio);
 						// init tracking
 						tracker.initTrackingObjects(pixels, bmapWidth, bmapHeight, rects);
 						saveflag=false;

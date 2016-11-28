@@ -243,9 +243,6 @@ public:
 		int x1 = prev_roi.x + cvRound(prev_roi.width >> 1);
 		int y1 = prev_roi.y + cvRound(prev_roi.height >> 1);
 
-		// calculate the pHash value of the template
-		//String s1 = getpHashValue(tmplate);
-
 		vector<double> v1(locs.size()), v2(locs.size()), v3(locs.size()), v4(locs.size()), w(locs.size());
 		/// looping
 		for (int i = 0; i < locs.size(); i++)
