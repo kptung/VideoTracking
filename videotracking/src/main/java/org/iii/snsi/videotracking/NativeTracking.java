@@ -1,15 +1,13 @@
 package org.iii.snsi.videotracking;
 
-import android.graphics.Rect;
-
-import java.util.HashMap;
-
 public class NativeTracking {
 
 	static {
 		System.loadLibrary("videotracking");
 	}
+
 	private long handle;
+	private boolean firstRun = true;
 
 	/**
 	 * Constructor
@@ -29,7 +27,7 @@ public class NativeTracking {
 	 * The data format is [[x1, y1, w1, h1],[x2, y2, w2, h2], ...]
 	 * @return A postive rectangle id, return -1 if error occurred.
 	 */
-	public int[] initTrackingObjects(byte[] image, int width, int height,
+	private int[] initTrackingObjects(byte[] image, int width, int height,
 			int[] rects) {
 		return initTrackingObjects(handle, image, width, height, rects);
 	}
@@ -38,10 +36,19 @@ public class NativeTracking {
 	 * Processing Camshit to track rectangles
 	 *
 	 * @param image The NV21 image.
+	 * @param width The image width.
+	 * @param height The image height.
 	 * @param rect The integer array that indecate retangle.
 	 * @return A postive rectangle id, return -1 if error occurred.
 	 */
-	public int[] addTrackingObjects(byte[] image, int[] rect) {
+	public int[] addTrackingObjects(byte[] image, int width, int height,
+			int[] rect) {
+
+		if (firstRun) {
+			firstRun = false;
+			return initTrackingObjects(image, width, height, rect);
+		}
+
 		return addTrackingObjects(handle, image, rect);
 	}
 
@@ -57,8 +64,8 @@ public class NativeTracking {
 	/**
 	 * Processing Camshit to track rectangles
 	 *
-	 * @param image The NV21 image.
-	 * i.e. [0,122,20,45,78,1,23,23,100,20,2,-1,-1,-1,-1] means the following:
+	 * @param image The NV21 image. i.e.
+	 * [0,122,20,45,78,1,23,23,100,20,2,-1,-1,-1,-1] means the following:
 	 * RectangleID 0: x = 122, y = 20, w = 45, h = 78.<br />
 	 * RectangleID 1: x = 23, y = 23, w = 100, h = 20.<br />
 	 * RectangleID 2: False alarm.
@@ -75,16 +82,14 @@ public class NativeTracking {
 	public void releaseHandle() {
 		releaseHandle(handle);
 	}
-	
-	
-	
+
 	/**
 	 * Native functions (will be implemented by C/C++)
 	 */
 	private native long createHandle();
 
 	private native int[] initTrackingObjects(long handle, byte[] image, int width, int height,
-		int[] rects);
+			int[] rects);
 
 	private native int[] addTrackingObjects(long handle, byte[] image, int[] rects);
 
@@ -93,5 +98,5 @@ public class NativeTracking {
 	private native int[] processTracking(long handle, byte[] image);
 
 	private native boolean releaseHandle(long handle);
-	
+
 }
