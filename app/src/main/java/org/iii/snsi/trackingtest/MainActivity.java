@@ -68,6 +68,9 @@ public class MainActivity extends Activity{
 	/// the flag to process multi-objs tracking
 	private boolean track_multiobj_flag = true;
 
+	//
+	int x=0;
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -160,18 +163,16 @@ public class MainActivity extends Activity{
 						// Specify a tracking target
 						if(objcount==1)
 						{
-							rect.add(objcount-1);
+							//rect.add(objcount-1);
 							rect.add(lx);
 							rect.add(ly);
 							rect.add(width);
 							rect.add(height);
 							int[] roi = convert2intArray(rect);
 							// init tracking
-							tracker.addTrackingObjects(preview, previewWidth, previewHeight, roi);
-						}
+							int[] initarr=tracker.addTrackingObjects(preview, previewWidth, previewHeight, roi);						}
 						else if(objcount>1)
 						{
-							other.add(objcount-1);
 							other.add(lx);
 							other.add(ly);
 							other.add(width);
@@ -185,7 +186,7 @@ public class MainActivity extends Activity{
 						{
 							//all.addAll(other);
 							int[] others = convert2intArray(other);
-							tracker.addTrackingObjects(preview, previewWidth, previewHeight ,others);
+							int[] addarr = tracker.addTrackingObjects(preview, others);
 						}
 						/// tracking
 						int[] rects = tracker.processTracking(preview);
