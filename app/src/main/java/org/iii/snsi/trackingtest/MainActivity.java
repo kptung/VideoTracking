@@ -163,7 +163,6 @@ public class MainActivity extends Activity{
 						// Specify a tracking target
 						if(objcount==1)
 						{
-							//rect.add(objcount-1);
 							rect.add(lx);
 							rect.add(ly);
 							rect.add(width);
@@ -186,7 +185,7 @@ public class MainActivity extends Activity{
 						{
 							//all.addAll(other);
 							int[] others = convert2intArray(other);
-							int[] addarr = tracker.addTrackingObjects(preview, others);
+							int[] addarr = tracker.addTrackingObjects(preview, previewWidth, previewHeight, others);
 						}
 						/// tracking
 						int[] rects = tracker.processTracking(preview);
