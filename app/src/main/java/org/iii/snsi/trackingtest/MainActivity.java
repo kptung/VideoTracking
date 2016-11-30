@@ -167,7 +167,7 @@ public class MainActivity extends Activity{
 							rect.add(height);
 							int[] roi = convert2intArray(rect);
 							// init tracking
-							tracker.initTrackingObjects(preview, previewWidth, previewHeight, roi);
+							tracker.addTrackingObjects(preview, previewWidth, previewHeight, roi);
 						}
 						else if(objcount>1)
 						{
@@ -185,7 +185,7 @@ public class MainActivity extends Activity{
 						{
 							//all.addAll(other);
 							int[] others = convert2intArray(other);
-							tracker.addTrackingObjects(preview, others);
+							tracker.addTrackingObjects(preview, previewWidth, previewHeight ,others);
 						}
 						/// tracking
 						int[] rects = tracker.processTracking(preview);
