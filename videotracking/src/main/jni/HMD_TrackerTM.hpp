@@ -141,7 +141,12 @@ public:
 			cvtColor(a, m, CV_BGR2Luv);
 			cvtColor(b, n, CV_BGR2Luv);
 		}
-		return (a.channels() > 1 && b.channels() > 1) ? cv::norm(m - n) : -1;
+		else
+		{
+			m = a.clone();
+			n = b.clone();
+		}
+		return cv::norm(m - n);
 	}
 
 	/// obtain the sum of absolute difference (SAD) between 2 images 
@@ -260,11 +265,6 @@ public:
 			/// v4 is the color weight; if the image between the objects is similiar, the value is low
 			v4.at(i) = getColordiff(tmplate, target(roi));
 		}
-		
-		double maxv;
-		minMaxLoc(v4, NULL, &maxv, NULL, NULL, Mat());
-		for (int i = 0; i < v4.size(); i++)
-			v4.at(i) = (v4.at(i) == -1) ? maxv : v4.at(i);
 
 		normalize(v2, v2, 0, 1, NORM_MINMAX, -1, Mat());
 		normalize(v3, v3, 0, 1, NORM_MINMAX, -1, Mat());

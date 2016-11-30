@@ -59,7 +59,12 @@ public class TouchView extends View {
 	// you can ignore this 
 	private ScaleGestureDetector mScaleDetector;
 	private float mScaleFactor = 1.f;
-	
+
+	//
+	private int[] rects;
+	private boolean trackflag=false;
+	private Paint paint=new Paint();
+
 
 	public TouchView(Context context){
 		super(context);
@@ -136,43 +141,91 @@ public class TouchView extends View {
 	// this onDraw method is called.
 	public void onDraw(Canvas canvas) {
 		super.onDraw(canvas);
-		canvas.save();
-		
-		canvas.drawLine(mLeftTopPosX+mCenter, mLeftTopPosY+mCenter,
-				mRightTopPosX+mCenter, mRightTopPosY+mCenter, topLine);
-		canvas.drawLine(mLeftBottomPosX+mCenter, mLeftBottomPosY+mCenter,
-				mRightBottomPosX+mCenter, mRightBottomPosY+mCenter, bottomLine);
-		canvas.drawLine(mLeftTopPosX+mCenter,mLeftTopPosY+mCenter,
-				mLeftBottomPosX+mCenter,mLeftBottomPosY+mCenter,leftLine);
-		canvas.drawLine(mRightTopPosX+mCenter,mRightTopPosY+mCenter,
-				mRightBottomPosX+mCenter,mRightBottomPosY+mCenter,rightLine);
+		if(!trackflag)
+		{
+			canvas.save();
+			canvas.drawLine(mLeftTopPosX + mCenter, mLeftTopPosY + mCenter,
+					mRightTopPosX + mCenter, mRightTopPosY + mCenter, topLine);
+			canvas.drawLine(mLeftBottomPosX + mCenter, mLeftBottomPosY + mCenter,
+					mRightBottomPosX + mCenter, mRightBottomPosY + mCenter, bottomLine);
+			canvas.drawLine(mLeftTopPosX + mCenter, mLeftTopPosY + mCenter,
+					mLeftBottomPosX + mCenter, mLeftBottomPosY + mCenter, leftLine);
+			canvas.drawLine(mRightTopPosX + mCenter, mRightTopPosY + mCenter,
+					mRightBottomPosX + mCenter, mRightBottomPosY + mCenter, rightLine);
 
+			mLeftTopIcon.setBounds((int) mLeftTopPosX, (int) mLeftTopPosY,
+					mLeftTopIcon.getIntrinsicWidth() + (int) mLeftTopPosX,
+					mLeftTopIcon.getIntrinsicHeight() + (int) mLeftTopPosY);
+			mRightTopIcon.setBounds((int) mRightTopPosX, (int) mRightTopPosY,
+					mRightTopIcon.getIntrinsicWidth() + (int) mRightTopPosX,
+					mRightTopIcon.getIntrinsicHeight() + (int) mRightTopPosY);
 
-		mLeftTopIcon.setBounds((int)mLeftTopPosX, (int)mLeftTopPosY,
-				mLeftTopIcon.getIntrinsicWidth()+(int)mLeftTopPosX,
-				mLeftTopIcon.getIntrinsicHeight()+(int)mLeftTopPosY);
+			mLeftBottomIcon.setBounds((int) mLeftBottomPosX, (int) mLeftBottomPosY,
+					mLeftBottomIcon.getIntrinsicWidth() + (int) mLeftBottomPosX,
+					mLeftBottomIcon.getIntrinsicHeight() + (int) mLeftBottomPosY);
 
-		mRightTopIcon.setBounds((int)mRightTopPosX, (int)mRightTopPosY,
-				mRightTopIcon.getIntrinsicWidth()+(int)mRightTopPosX,
-				mRightTopIcon.getIntrinsicHeight()+(int)mRightTopPosY);
+			mRightBottomIcon.setBounds((int) mRightBottomPosX, (int) mRightBottomPosY,
+					mRightBottomIcon.getIntrinsicWidth() + (int) mRightBottomPosX,
+					mRightBottomIcon.getIntrinsicHeight() + (int) mRightBottomPosY);
 
-		mLeftBottomIcon.setBounds((int)mLeftBottomPosX, (int)mLeftBottomPosY,
-				mLeftBottomIcon.getIntrinsicWidth()+(int)mLeftBottomPosX,
-				mLeftBottomIcon.getIntrinsicHeight()+(int)mLeftBottomPosY);
+			/// icon draw
+			mLeftTopIcon.draw(canvas);
+			mRightTopIcon.draw(canvas);
+			mLeftBottomIcon.draw(canvas);
+			mRightBottomIcon.draw(canvas);
+			canvas.restore();
+		}
+		else
+		{
+			for(int i=0;i<rects.length;i+=5)
+			{
+				float lx=(float)rects[i+1];
+				float ly=(float)rects[i+2];
+				float rx=(float)rects[i+3];
+				float ry=(float)rects[i+4];
+				mLeftTopPosX=lx;
+				mLeftTopPosY=ly;
+				mRightTopPosX=rx;
+				mRightTopPosY=ly;
+				mLeftBottomPosX=lx;
+				mLeftBottomPosY=ry;
+				mRightBottomPosX=rx;
+				mRightBottomPosY=ry;
 
-		mRightBottomIcon.setBounds((int)mRightBottomPosX, (int)mRightBottomPosY,
-				mRightBottomIcon.getIntrinsicWidth()+(int)mRightBottomPosX,
-				mRightBottomIcon.getIntrinsicHeight()+(int)mRightBottomPosY);
-
-		/// update the info of new roi
-		//setRect(mLeftTopPosX+mCenter, mLeftTopPosY+mCenter, mRightTopPosX+mCenter, mRightTopPosY+mCenter);
-
-		/// icon draw
-		mLeftTopIcon.draw(canvas);
-		mRightTopIcon.draw(canvas);
-		mLeftBottomIcon.draw(canvas);
-		mRightBottomIcon.draw(canvas);
-		canvas.restore();
+				if(rects[i]==0) {
+					paint.setColor(Color.BLACK);
+					paint.setStyle(Paint.Style.STROKE);
+					paint.setStrokeWidth(5);
+				}
+				else if(rects[i]==1){
+					paint.setColor(Color.WHITE);
+					paint.setStyle(Paint.Style.STROKE);
+					paint.setStrokeWidth(5);
+				}
+				else if(rects[i]==2){
+					paint.setColor(Color.RED);
+					paint.setStyle(Paint.Style.STROKE);
+					paint.setStrokeWidth(5);
+				}
+				else if(rects[i]==3){
+					paint.setColor(Color.BLUE);
+					paint.setStyle(Paint.Style.STROKE);
+					paint.setStrokeWidth(5);
+				}
+				else if(rects[i]==4){
+					paint.setColor(Color.GREEN);
+					paint.setStyle(Paint.Style.STROKE);
+					paint.setStrokeWidth(5);
+				}
+				else if(rects[i]==5){
+					paint.setColor(Color.YELLOW);
+					paint.setStyle(Paint.Style.STROKE);
+					paint.setStrokeWidth(5);
+				}
+				canvas.drawRect(mLeftTopPosX, mLeftTopPosY, mRightBottomPosX, mRightBottomPosY, paint);
+			}
+			//canvas.restore();
+		}
 	}
 
 
@@ -419,7 +472,10 @@ public class TouchView extends View {
 	}
 
 	public Rect getRect(){ return this.buttonRec;}
-
+	public void setRects(int[] arr) {
+		rects=arr;
+		trackflag=true;
+	}
 	// calls the onDraw method, I used it in my app Translanguage OCR
 	// because I have a thread that needs to invalidate, or redraw
 	// you cannot call onDraw from a thread not the UI thread.

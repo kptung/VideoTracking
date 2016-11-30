@@ -16,6 +16,8 @@ import android.widget.Button;
 
 import org.iii.snsi.videotracking.NativeTracking;
 
+import java.util.ArrayList;
+
 import static android.content.ContentValues.TAG;
 
 public class MainActivity extends Activity{
@@ -25,26 +27,46 @@ public class MainActivity extends Activity{
 	private Button saveButton;
 	private Button trackButton;
 
-	// Thread initialization
-	private Thread drawThread;
+	/// display classes;  sufaceView shows the camera captured screen preview;
+	/// mCamera is to control camera; mView is to draw the rect when camera is opened
 	private SurfaceView surfaceView;
 	private OldCamera mCamera;
+	private TouchView mView;
+
+	///  show the available drawing rect on touchview
+	private Rect rec = new Rect();
+
+	// Thread initialization
+	private Thread drawThread;
 	private boolean threadFlag;
-	private int mScreenHeight;
-	private int mScreenWidth;
 
 	// Tracking initialization
-	private long handle;
 	private NativeTracking tracker;
-	private boolean trackflag = false;
-	private boolean saveflag = false;
-	private TouchView mView;
-	private Rect rec = new Rect();
-	private byte[] pixels;
-	int bmapWidth;
-	int bmapHeight;
-	float wRatio;
-	float hRatio;
+	private int mScreenHeight;
+	private int mScreenWidth;
+	/// camera captured frame
+	private byte[] preview;
+	private int previewWidth;
+	private int previewHeight;
+	/// the ratio of the screen to camera captured frame
+	private float wRatio;
+	private float hRatio;
+	/// a number of tracking objs
+	private int objcount=0;
+	private int trackcount=0;
+
+	/// multi-objs tracking initialization
+	ArrayList<Integer> rect = new ArrayList();
+	ArrayList<Integer> other = new ArrayList();
+
+	/// the flag to open camera
+	private boolean cameraflag=false;
+	/// the flag to process real-time video tracking
+	private boolean camtrackflag = false;
+	/// the flag to save real-time rectangle
+	private boolean camsaveflag = false;
+	/// the flag to process multi-objs tracking
+	private boolean track_multiobj_flag = true;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -67,13 +89,12 @@ public class MainActivity extends Activity{
 
 		// Show camera
 		mCamera = new OldCamera();
-		bmapWidth=mCamera.getWidth();
-		bmapHeight=mCamera.getHeight();
-		wRatio=(float)bmapWidth/mScreenWidth;
-		hRatio=(float)bmapHeight/mScreenHeight;
+		previewWidth=mCamera.getWidth();
+		previewHeight=mCamera.getHeight();
+		wRatio=(float)previewWidth/mScreenWidth;
+		hRatio=(float)previewHeight/mScreenHeight;
 		/// draw camera view @ this surfaceview
 		surfaceView = (SurfaceView)findViewById(R.id.surfaceView);
-
 		/// button initialization
 		cameraButton = (Button)findViewById(R.id.button1);
 		saveButton = (Button)findViewById(R.id.button2);
@@ -89,10 +110,11 @@ public class MainActivity extends Activity{
 				mCamera.setCallbackFunction(new OldCamera.CallbackFrameListener(){
 					@Override
 					public void onCallback(byte[] data) {
-						pixels=data;
+						preview=data;
 					}
 				});
 				mCamera.startPreview(true);
+				tracker = new NativeTracking();
 			}
 		});
 
@@ -100,7 +122,8 @@ public class MainActivity extends Activity{
 			@Override
 			public void onClick(View v) {
 				Log.i(TAG, "save roi position");
-				saveflag=true;
+				objcount+=1;
+				camsaveflag=true;
 			}
 		});
 
@@ -108,7 +131,7 @@ public class MainActivity extends Activity{
 			@Override
 			public void onClick(View v) {
 				Log.i(TAG, "strat tracking");
-				trackflag=true;
+				camtrackflag=true;
 			}
 		});
 
@@ -127,44 +150,63 @@ public class MainActivity extends Activity{
 			@Override
 			public void run(){
 				while(threadFlag){
-					if(saveflag) {
+					if(camsaveflag) {
 						// rect down-sampling : ( OpenCV Rect (left-top x, left-top y, width, height))
-						int lx = Math.round(mView.getmLeftTopPosX());
-						int ly = Math.round(mView.getmLeftTopPosY());
-						int width=Math.round(mView.getmRightTopPosX() - mView.getmLeftTopPosX());
-						int height=Math.round(mView.getmLeftBottomPosY() - mView.getmLeftTopPosY());
-						int[] rects = new int [5];
-                        rects[0] = 0;
-						rects[1] = Math.round(lx * wRatio);
-						rects[2] = Math.round(ly * hRatio);
-						rects[3] = Math.round(width * wRatio);
-						rects[4] = Math.round(height * hRatio);
-						// init tracking
-						tracker.initTrackingObjects(pixels, bmapWidth, bmapHeight, rects);
-						saveflag=false;
-					}
-					if(trackflag){
-						/// tracking
-						int[] rects = tracker.processTracking(pixels);
-						// rect up-sampling
-						if (rects.length == 5) {
-							int lx=rects[1];
-							int ly=rects[2];
-							int width=rects[3];
-							int height=rects[4];
-							mView.setmLeftTopPosX(lx / wRatio);
-							mView.setmLeftTopPosY(ly / hRatio);
-							mView.setmRightTopPosX((lx + width) / wRatio);
-							mView.setmRightTopPosY(ly / hRatio);
-							mView.setmLeftBottomPosX(lx / wRatio);
-							mView.setmLeftBottomPosY((ly + height) / hRatio);
-							mView.setmRightBottomPosX((lx + width) / wRatio);
-							mView.setmRightBottomPosY((ly + height) / hRatio);
-							/// update UI
-							Message msg = new Message();
-							msg.what = 1;
-							mHandler.sendMessage(msg);
+						int lx = Math.round(mView.getmLeftTopPosX() * wRatio);
+						int ly = Math.round(mView.getmLeftTopPosY() * hRatio);
+						int width=Math.round((mView.getmRightTopPosX() - mView.getmLeftTopPosX()) * wRatio);
+						int height=Math.round((mView.getmRightBottomPosY() - mView.getmRightTopPosY()) * hRatio);
+
+						// Specify a tracking target
+						if(objcount==1)
+						{
+							rect.add(objcount-1);
+							rect.add(lx);
+							rect.add(ly);
+							rect.add(width);
+							rect.add(height);
+							int[] roi = convert2intArray(rect);
+							// init tracking
+							tracker.initTrackingObjects(preview, previewWidth, previewHeight, roi);
 						}
+						else if(objcount>1)
+						{
+							other.add(objcount-1);
+							other.add(lx);
+							other.add(ly);
+							other.add(width);
+							other.add(height);
+						}
+						camsaveflag=false;
+					}
+					if(camtrackflag){
+						trackcount+=1;
+						if(objcount>1 && trackcount==1)
+						{
+							//all.addAll(other);
+							int[] others = convert2intArray(other);
+							tracker.addTrackingObjects(preview, others);
+						}
+						/// tracking
+						int[] rects = tracker.processTracking(preview);
+						// rect up-sampling
+						for(int i=0;i<rects.length;i+=5) {
+							int lx=rects[i + 1];
+							int ly=rects[i + 2];
+							int w=rects[i + 3];
+							int h=rects[i + 4];
+							rects[i + 1] = Math.round(lx / wRatio);
+							rects[i + 2] = Math.round(ly / hRatio);
+							rects[i + 3] = Math.round((lx + w) / wRatio );
+							rects[i + 4] = Math.round((ly + h) / hRatio );
+						}
+
+						/// update Rects
+						mView.setRects(rects);
+						/// update UI
+						Message msg = new Message();
+						msg.what = 1;
+						mHandler.sendMessage(msg);
 					}
 					sleep(10);
 				}
@@ -205,5 +247,13 @@ public class MainActivity extends Activity{
 		}
 	}
 
+	public int[] convert2intArray(ArrayList<Integer> IntegerList) {
+		int[] intArray = new int[IntegerList.size()];
+		int count = 0;
+		for(int i : IntegerList){
+			intArray[count++] = i;
+		}
+		return intArray;
+	}
 
 }
