@@ -84,9 +84,9 @@ public:
 	{
 		/// down-sampling or up-sampling
 		if (resample_flag)
-			cv::resize(image, image, Size(image.cols / ratio.x, image.rows / ratio.y));
+			cv::resize(image, image, Size(image.cols / ratio.x, image.rows / ratio.y), 0, 0, INTER_AREA);
 		else
-			cv::resize(image, image, Size(image.cols * ratio.x, image.rows * ratio.y));
+			cv::resize(image, image, Size(image.cols * ratio.x, image.rows * ratio.y), 0, 0, INTER_CUBIC);
 	}
 
 	/// calculating the image re-sampling ratio
