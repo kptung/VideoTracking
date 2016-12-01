@@ -169,7 +169,8 @@ public class MainActivity extends Activity{
 							rect.add(height);
 							int[] roi = convert2intArray(rect);
 							// init tracking
-							int[] initarr=tracker.addTrackingObjects(preview, previewWidth, previewHeight, roi);						}
+							int[] initarr=tracker.addTrackingObjects(preview, previewWidth, previewHeight, roi);
+						}
 						else if(objcount>1)
 						{
 							other.add(lx);

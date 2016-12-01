@@ -80,13 +80,15 @@ public:
 	}
 
 	/// image re-sampling: 0:up-sampling; 1:down-sampling
-	void imResample(Mat& image, const Point& ratio, const bool& resample_flag)
+	Mat imResample(const Mat& image, const Point& ratio, const bool& resample_flag)
 	{
+		Mat out;
 		/// down-sampling or up-sampling
 		if (resample_flag)
-			cv::resize(image, image, Size(image.cols / ratio.x, image.rows / ratio.y), 0, 0, INTER_AREA);
+			cv::resize(image, out, Size(cvRound(image.cols / ratio.x), cvRound(image.rows / ratio.y)), 0, 0, INTER_AREA);
 		else
-			cv::resize(image, image, Size(image.cols * ratio.x, image.rows * ratio.y), 0, 0, INTER_CUBIC);
+			cv::resize(image, out, Size(cvRound(image.cols * ratio.x), cvRound(image.rows * ratio.y)), 0, 0, INTER_CUBIC);
+		return out;
 	}
 
 	/// calculating the image re-sampling ratio
@@ -153,8 +155,7 @@ public:
 	double getSAD(const Mat& source, const Mat& target)
 	{
 		Scalar x = cv::sum(cv::abs(source - target));
-		double val = 0;
-		return val = (source.channels() == 1 || source.channels() == 1) ? x.val[0] : (x.val[0] + x.val[1] + x.val[2]) / 3;
+		return (source.channels() == 1 || source.channels() == 1) ? x.val[0] : (x.val[0] + x.val[1] + x.val[2]) / 3;
 	}
 
 	/// calculate the moving vector from the current frame and the previous frame
@@ -171,8 +172,8 @@ public:
 	{
 		Rect match=prev_roi;
 		double unitvec = 0.4;
-		match.x = cvRound(prev_roi.x + vec.x * unitvec);
-		match.y = cvRound(prev_roi.y + vec.y * unitvec);
+		match.x = prev_roi.x + cvRound(vec.x * unitvec);
+		match.y = prev_roi.y + cvRound(vec.y * unitvec);
 		return match;
 	}
 
@@ -337,7 +338,8 @@ public:
 		objects.clear();
 
 		/// image initialization
-		Mat image = source.clone();
+		Mat im = source.clone();
+		Mat image;
 
 		/// return the image re-sampling ratio
 		scale_ratio = resampleRatio(source);
@@ -345,7 +347,7 @@ public:
 		/// check re-sampling is essential
 		if (resampling)
 			/// down-sampling (1) 
-			imResample(image, scale_ratio, 1);
+			image=imResample(im, scale_ratio, 1);
 
 		/// The target image and its edge image
 		Mat gray_track_im;
@@ -356,13 +358,14 @@ public:
 		for ( ; itr != m_active_objects.end(); ++itr )
 		{
 			/// original template & its roi
-			Mat tmplate = itr->second;
+			Mat tmp = itr->second;
+			Mat tmplate;
 			cv::Rect roi = m_active_roi.at(itr->first);
 
 			/// down-sampling
 			if (resampling)
 			{
-				imResample(tmplate, scale_ratio, 1);
+				tmplate = imResample(tmp, scale_ratio, 1);
 				rectResample(roi, scale_ratio, 1);
 			}
 
