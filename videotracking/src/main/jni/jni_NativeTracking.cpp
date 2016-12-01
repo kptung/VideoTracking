@@ -28,7 +28,9 @@ extern "C" {
 #endif
 
 static int imgHeight, imgWidth = 0;
-int id=0;
+
+bool operator ! (const Mat&m) { return m.empty(); }
+
 /*
  * Class:     org_iii_snsi_videotracking_NativeTracking
  * Method:    createHandle
@@ -49,7 +51,7 @@ JNIEXPORT jlong JNICALL Java_org_iii_snsi_videotracking_NativeTracking_createHan
 
 JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_initTrackingObjects
   (JNIEnv *env, jobject jNativeTracking, jlong jhandle, jbyteArray jimage, jint jwidth, jint jheight, jintArray jrects) {
-      // Image Size
+      /* Image Size */
       imgHeight = (int)jheight;
       imgWidth = (int)jwidth;
 
@@ -58,25 +60,28 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_initT
       Mat myuv(imgHeight + imgHeight/2, imgWidth, CV_8UC1, (uchar *)frame);
       cv::cvtColor(myuv, image, CV_YUV420sp2BGR);
 
-      // Rect data (jint Array)
+      if(!image)
+        return NULL;
+
+      /* Rect data (jint Array) */
       int jrectsLength = env->GetArrayLength(jrects);
       jint* jrectsArrayData = env->GetIntArrayElements(jrects, 0);
 
-      // ID data (jint Array)
+      /* ID data (jint Array) */
       jintArray jids = env->NewIntArray(jrectsLength / 4);
       jint* jidsArrayData = env->GetIntArrayElements(jids, 0);
 
-      // Rect data (Rect)
+      /* Rect data (Rect) */
       Rect rec = Rect((int)jrectsArrayData[0], (int)jrectsArrayData[1], (int)jrectsArrayData[2], (int)jrectsArrayData[3]);
       jidsArrayData[0] = SetTrackingTarget((T_HANDLE)jhandle, image, rec);
 
+      /* return the init rect array*/
       int* buf_result = new int[ 5 * (jrectsLength / 4) ];
       buf_result[0]=jidsArrayData[0];
       buf_result[1]=(int)jrectsArrayData[0];
       buf_result[2]=(int)jrectsArrayData[1];
       buf_result[3]=(int)jrectsArrayData[2];
       buf_result[4]=(int)jrectsArrayData[3];
-
       jintArray jIdsRects = env->NewIntArray(5);
       env->SetIntArrayRegion(jIdsRects, 0 , 5, buf_result);
 
@@ -101,11 +106,14 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_addTr
       Mat myuv(imgHeight + imgHeight/2, imgWidth, CV_8UC1, (uchar *)frame);
       cv::cvtColor(myuv, image, CV_YUV420sp2BGR);
 
-      // Rect data (jint Array)
+      if(!image)
+        return NULL;
+
+       /* Rect data (jint Array) */
       int jrectsLength = env->GetArrayLength(jrects);
       jint* jrectsArrayData = env->GetIntArrayElements(jrects, 0);
 
-      // ID data (jint Array)
+       /* ID data (jint Array) */
       jintArray jids = env->NewIntArray(jrectsLength / 4);
       jint* jidsArrayData = env->GetIntArrayElements(jids, 0);
 
@@ -117,6 +125,7 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_addTr
           jidsArrayData[j] = AddTrackingTarget((T_HANDLE)jhandle, image, target);
       }
 
+      /* return the init rect array*/
       int* buf_result = new int[ 5 * (jrectsLength / 4) ];
       int data_count = 0;
       for (int i = 0, j = 0; i < jrectsLength; i += 4, j++) {
@@ -178,6 +187,9 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_proce
       Mat image;
       Mat myuv(imgHeight + imgHeight/2, imgWidth, CV_8UC1, (uchar *)frame);
       cv::cvtColor(myuv, image, CV_YUV420sp2BGR);
+
+      if(!image)
+          return NULL;
 
       /* Map result */
       map<int, Rect> results;
