@@ -56,9 +56,10 @@ public class NativeTracking {
 	 * The function to release rectangle object
 	 *
 	 * @param ids The rectangle id that is returned by initTracking.
+	 * @return true if success, otherwise return false
 	 */
-	public void removeTrackingObject(int[] ids) {
-		removeTrackingObjects(handle, ids);
+	public boolean removeTrackingObject(int[] ids) {
+		return removeTrackingObjects(handle, ids);
 	}
 
 	/**
