@@ -88,6 +88,7 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_initT
       env->ReleaseByteArrayElements(jimage, frame, 0);
       env->ReleaseIntArrayElements(jrects, jrectsArrayData, 0);
       env->ReleaseIntArrayElements(jids, jidsArrayData, 0);
+      env->DeleteLocalRef(jids);
 
       return jIdsRects;
    //return 0;
@@ -143,6 +144,7 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_addTr
       env->ReleaseByteArrayElements(jimage, frame, 0);
       env->ReleaseIntArrayElements(jrects, jrectsArrayData, 0);
       env->ReleaseIntArrayElements(jids, jidsArrayData, 0);
+      env->DeleteLocalRef(jids);
 
       return jIdsRects;
   }
