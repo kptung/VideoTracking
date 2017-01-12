@@ -14,11 +14,13 @@
 #include <iostream>
 #include <iomanip>
 
+#define LOG_NDEBUG 0
 #define LOG_TAG "JNI_NativeTracking"
 #define LOGD(...) ((void)__android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__))
 
 #define JNI_DBG 1
-#define VIDEO_TRACKING_LIB_VERSION 0.1
+#define VIDEO_TRACKING_LIB_VERSION 0.2
+#define MIN_RECT_VALUE 8
 
 using namespace std;
 using namespace cv;
@@ -28,6 +30,7 @@ extern "C" {
 #endif
 
 static int imgHeight, imgWidth = 0;
+static vector<int> trackingObjects = vector<int>();
 
 bool operator ! (const Mat&m) { return m.empty(); }
 
@@ -38,6 +41,7 @@ bool operator ! (const Mat&m) { return m.empty(); }
  */
 JNIEXPORT jlong JNICALL Java_org_iii_snsi_videotracking_NativeTracking_createHandle
   (JNIEnv *env, jobject jNativeTracking) {
+      trackingObjects.clear();
       if(JNI_DBG)
           LOGD("CreateVideoTracker");
       return (jlong)CreateVideoTracker();
@@ -73,8 +77,10 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_initT
 
       /* Rect data (Rect) */
       Rect rec = Rect((int)jrectsArrayData[0], (int)jrectsArrayData[1], (int)jrectsArrayData[2], (int)jrectsArrayData[3]);
+      if(JNI_DBG)
+          LOGD("initTrackingObjects");
       jidsArrayData[0] = SetTrackingTarget((T_HANDLE)jhandle, image, rec);
-
+      trackingObjects.push_back(jidsArrayData[0]);
       /* return the init rect array*/
       int* buf_result = new int[ 5 * (jrectsLength / 4) ];
       buf_result[0]=jidsArrayData[0];
@@ -124,6 +130,7 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_addTr
           if(JNI_DBG)
               LOGD("AddTrackingTarget");
           jidsArrayData[j] = AddTrackingTarget((T_HANDLE)jhandle, image, target);
+          trackingObjects.push_back(jidsArrayData[j]);
       }
 
       /* return the init rect array*/
@@ -167,6 +174,14 @@ JNIEXPORT jboolean JNICALL Java_org_iii_snsi_videotracking_NativeTracking_remove
           const int& object_id = jidsArrayData[i];
           if(JNI_DBG)
               LOGD("RemoveTrackingTarget");
+
+          // Object ID = -1, remove all tracking object
+          if(object_id == -1) {
+            for (int itr = 0 ; itr < trackingObjects.size(); ++itr )
+                result =  RemoveTrackingTarget((T_HANDLE)jhandle, trackingObjects[itr]);
+            trackingObjects.clear();
+            break;
+          }
           result =  RemoveTrackingTarget((T_HANDLE)jhandle, object_id);
           if(!result)
               break;
@@ -235,6 +250,7 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_proce
  */
 JNIEXPORT jboolean JNICALL Java_org_iii_snsi_videotracking_NativeTracking_releaseHandle
   (JNIEnv *env, jobject jNativeTracking, jlong jhandle) {
+      trackingObjects.clear();
       if(JNI_DBG)
           LOGD("DeleteVideoTracker");
       return ( DeleteVideoTracker((T_HANDLE)jhandle) == true ? JNI_TRUE : JNI_FALSE);
