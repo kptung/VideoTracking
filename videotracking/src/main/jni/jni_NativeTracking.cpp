@@ -200,6 +200,9 @@ JNIEXPORT jboolean JNICALL Java_org_iii_snsi_videotracking_NativeTracking_remove
 JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_processTracking
   (JNIEnv *env, jobject jNativeTracking, jlong jhandle, jbyteArray jimage) {
 
+      if(trackingObjects.empty())
+          return NULL;
+
       jbyte* frame = env->GetByteArrayElements(jimage, 0);
       Mat image;
       Mat myuv(imgHeight + imgHeight/2, imgWidth, CV_8UC1, (uchar *)frame);
