@@ -123,10 +123,10 @@ public:
 	}
 
 	/// calculate Perceptual hash algorithm (pHash)
-	string getpHash(const Mat &src)
+	std::string getpHash(const Mat &src)
 	{
 		Mat img, dst;
-		string rst(64, '\0');
+		std::string rst(64, '\0');
 		double dIdex[64];
 		double mean = 0.0;
 		int k = 0;
@@ -324,7 +324,7 @@ public:
 		int x1 = prev_roi.x + cvRound(prev_roi.width >> 1);
 		int y1 = prev_roi.y + cvRound(prev_roi.height >> 1);
 		//
-		String tmpHash = getpHash(tmplate);
+		std::string tmpHash = getpHash(tmplate);
 
 		vector<double> v1(locs.size()), v2(locs.size()), v3(locs.size()), v4(locs.size()), v5(locs.size()), v6(locs.size()), w(locs.size());
 		/// looping
@@ -345,7 +345,7 @@ public:
 			/// v5 is the color weight; if the image between the objects is similiar, the value is high
 			v5.at(i) = 1.0 - getCosineDist(tmplate, target(roi));
 			// 
-			String tpHash = getpHash(target(roi));
+			std::string tpHash = getpHash(target(roi));
 			v6.at(i) = getHammingDist(tmpHash, tpHash) / 64.0;
 		}
 
@@ -387,7 +387,7 @@ public:
 	}
 
 	//get Hamming Distance
-	int getHammingDist(string &str1, string &str2)
+	int getHammingDist(std::string &str1, std::string &str2)
 	{
 		if ((str1.size() != 64) || (str2.size() != 64))
 			return -1;
@@ -576,7 +576,7 @@ public:
 		frame_id++;
 
 		///
-		String tarpHash = getpHash(target);
+		std::string tarpHash = getpHash(target);
 		imflag = ((1.0 - getHammingDist(srcpHash, tarpHash) / 64.0) > 0.5) ? true : false;
 		
 
@@ -760,7 +760,7 @@ private:
 	/// template matching method: 0/1: SQDIFF/Normalized-SQDIFF; 2/3: TM_CCORR/Normalized-TM_CCORR; 4/5: CCOEFF/Normalized-CCOEFF; 
 	int match_method;
 
-	String srcpHash;
+	std::string srcpHash;
 
 	/// the template roi in the start frame 
 	std::map<int, cv::Rect> m_active_roi;
