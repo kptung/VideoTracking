@@ -24,6 +24,8 @@ const std::string db_output("/sdcard/output/");
 #include <ctype.h>
 #include <iomanip>
 #include <fstream>
+#include <numeric>
+#include <functional>
 
 #include "HMD_AbstractTracker.hpp"
 
@@ -39,6 +41,9 @@ public:
 		match_method = 5;
 		resampling = true;
 		imsize = Point(80, 60);
+		frame_id = 92;
+		debug_flag = false;
+		scale_ratio = Point(1, 1);
 	}
 
 	/// add a tracking obj
@@ -46,6 +51,8 @@ public:
 	{
 		
 		int obj_id = AbstractTracker::addTrackingObject(source, obj_roi);
+		
+		if (obj_id == 0) srcpHash = getpHash(source);
 
 		if (obj_id >= 0)
 		{
@@ -53,9 +60,113 @@ public:
 			m_active_prev_roi.insert(std::make_pair(obj_id, obj_roi));
 			m_active_pts_vector.insert(std::make_pair(obj_id, Point(0,0)));
 			m_active_missing.insert(std::make_pair(obj_id, 0));
+			m_active_prev_tmplate.insert(std::make_pair(obj_id, source(obj_roi)));
+			m_active_tmplate_hist.insert(std::make_pair(obj_id, getHist(source(obj_roi))));
+			//m_active_tmplate_prev_hist.insert(std::make_pair(obj_id, getHist(source(obj_roi))));
+			m_active_tmplate_colorange.insert(std::make_pair(obj_id, getColorange(source, obj_roi)));
+			vector<double> initTh(1);
+			initTh.at(0) = 0;
+			m_active_tmplate_cth.insert(std::make_pair(obj_id, initTh));
+			m_active_tmplate_sth.insert(std::make_pair(obj_id, initTh));
 		}
 
 		return obj_id;
+	}
+
+
+	Mat getHist(const Mat& tmplate)
+	{
+		Mat tmphsv, tmpmask, tmphue, tmphist;
+		int hsize = 16;
+		float hranges[] = { 0, 180 };
+		int ch[] = { 0, 0 };
+		const float* phranges = hranges;
+		/// tmplate HSV
+		cvtColor(tmplate, tmphsv, CV_BGR2HSV);
+		inRange(tmphsv, Scalar(0, 60, 32), Scalar(180, 255, 255), tmpmask);
+		Mat cha[3];
+		split(tmphsv, cha);
+		calcHist(&cha[0], 1, 0, tmpmask, tmphist, 1, &hsize, &phranges);
+		normalize(tmphist, tmphist, 0, 255, NORM_MINMAX);
+		return tmphist;
+	}
+
+	Rect camshiftArea(const Mat& target, const Mat& tmphist, const Rect& prev_roi, const vector<double>& colorange)
+	{
+		Mat tarColor, tar, tarmask, backproj;
+		int r = 5;
+		Rect selection = Rect(prev_roi.x - r, prev_roi.y - r, prev_roi.width + r, prev_roi.height + r) & Rect(0, 0, target.cols, target.rows);;
+		int hsize = 16;
+		float hranges[] = { 0, 180};
+		int ch[] = { 0, 0 };
+		const float* phranges = hranges;
+		
+		/// camshift
+		cvtColor(target, tarColor, CV_BGR2HSV);
+		double m1 = (colorange.at(3) - colorange.at(2)) / r;
+		double m2 = (colorange.at(5) - colorange.at(4)) / r;
+		inRange(tarColor, Scalar(0, max(0.0, colorange.at(2) - m1), max(0.0, colorange.at(4) - m2)), Scalar(180, min(colorange.at(3) - m1, 255.0), min(colorange.at(5) - m2, 255.0)), tarmask);
+		//inRange(tarColor, Scalar(0, 60, 32), Scalar(180, 255, 255), tarmask);
+		tar = extrROI(tarColor, tarmask);
+		//imgshow(target, tarmask);
+		Mat chs[3];
+		split(tar, chs);
+		calcBackProject(&chs[0], 1, 0, tmphist, backproj, &phranges);
+		RotatedRect trackBox = CamShift(backproj, selection, TermCriteria(TermCriteria::EPS | TermCriteria::COUNT, 10, 1));
+		//if (debug_flag) { Mat tt = target.clone();  ellipse(tt, trackBox, Scalar(255, 0, 0)); imgshow(tt); }
+		selection.x -= r;
+		selection.y -= r;
+		selection.width += 4*r;
+		selection.height += 4*r;
+		selection &= Rect(0, 0, target.cols, target.rows);
+		return selection;
+	}
+
+	/// calculate Perceptual hash algorithm (pHash)
+	string getpHash(const Mat &src)
+	{
+		Mat img, dst;
+		string rst(64, '\0');
+		double dIdex[64];
+		double mean = 0.0;
+		int k = 0;
+		if (src.channels() == 3)
+		{
+			cvtColor(src, img, CV_BGR2GRAY);
+			img = Mat_<double>(img);
+		}
+		else
+		{
+			img = src.clone();
+			img = Mat_<double>(src);
+		}
+
+		/* resize */
+		resize(img, img, Size(8, 8));
+
+		/* dct*/
+		dct(img, dst);
+
+		/* the left-top 8 x 8 corner */
+		for (int i = 0; i < 8; ++i) {
+			for (int j = 0; j < 8; ++j)
+			{
+				dIdex[k] = dst.at<double>(i, j);
+				mean += dst.at<double>(i, j) / 64;
+				++k;
+			}
+		}
+
+		/* hash value¡C*/
+		for (int i = 0; i < 64; ++i)
+		{
+			if (dIdex[i] >= mean)
+				rst[i] = '1';
+			else
+				rst[i] = '0';
+
+		}
+		return rst;
 	}
 
 	/// rectangle re-sampling: 0:up-sampling; 1:down-sampling
@@ -84,9 +195,9 @@ public:
 	{
 		/// down-sampling or up-sampling
 		if (resample_flag)
-			cv::resize(image, image, Size(image.cols / ratio.x, image.rows / ratio.y));
+			cv::resize(image, image, Size(cvRound(image.cols / ratio.x), cvRound(image.rows / ratio.y)));
 		else
-			cv::resize(image, image, Size(image.cols * ratio.x, image.rows * ratio.y));
+			cv::resize(image, image, Size(cvRound(image.cols * ratio.x), cvRound(image.rows * ratio.y)));
 	}
 
 	/// calculating the image re-sampling ratio
@@ -98,23 +209,6 @@ public:
 		ratio.x = source.cols / imsize.x;
 		resampling = (ratio.x == 1 && ratio.y == 1) ? false : true;
 		return ratio;
-	}
-
-	/// boundary check
-	void boundaryCheck(Rect& roi, const Mat& target)
-	{
-		roi.x = max(0, roi.x);
-		roi.x = min(roi.x, target.cols - 1);
-		roi.y = max(0, roi.y);
-		roi.y = min(roi.y, target.rows - 1);
-		int w = roi.x + roi.width;
-		w = max(0, w);
-		w = min(w, target.cols);
-		roi.width = w - roi.x;
-		int h = roi.y + roi.height;
-		h = max(0, h);
-		h = min(h, target.rows);
-		roi.height = h - roi.y;
 	}
 
 	/// calculate the distance between 2 regions
@@ -153,27 +247,7 @@ public:
 	double getSAD(const Mat& source, const Mat& target)
 	{
 		Scalar x = cv::sum(cv::abs(source - target));
-		double val = 0;
-		return val = (source.channels() == 1 || source.channels() == 1) ? x.val[0] : (x.val[0] + x.val[1] + x.val[2]) / 3;
-	}
-
-	/// calculate the moving vector from the current frame and the previous frame
-	Point getLinevec(const Rect& prev_roi, const Rect& roi)
-	{
-		Point p1 = Point(prev_roi.x, prev_roi.y);
-		Point p2 = Point(roi.x, roi.y);
-		Point vec = p2 - p1;
-		return vec;
-	}
-
-	/// use the moving vector from the current frame and the previous frame 2 predict the region
-	Rect getLinepts(const Rect& prev_roi, const Point& vec)
-	{
-		Rect match=prev_roi;
-		double unitvec = 0.4;
-		match.x = cvRound(prev_roi.x + vec.x * unitvec);
-		match.y = cvRound(prev_roi.y + vec.y * unitvec);
-		return match;
+		return (source.channels() == 1 || source.channels() == 1) ? x.val[0] : (x.val[0] + x.val[1] + x.val[2]) / 3;
 	}
 
 	/// convert the image 2 its edge image
@@ -208,21 +282,6 @@ public:
 		return destination;
 	}
 
-	/// the Gaussian weight of the distance between two regions
-	double getLocWeight(const Rect& r1, const Rect& r2)
-	{
-		/// initialization
-		Point diff = Point(r1.x + cvRound(r1.width >> 1), r1.y + cvRound(r1.height >> 1)) - Point(r2.x + cvRound(r2.width >> 1), r2.y + cvRound(r2.height >> 1));
-		
-		/// define the searching range
-		int sigma = cvRound((min(r1.width, r1.height)) >> 1);
-		
-		/// calculate the distance between 2 points
-		double dist = getDist(Point(r1.x + cvRound(r1.width >> 1), r1.y + cvRound(r1.height >> 1)), Point(r2.x + cvRound(r2.width >> 1), r2.y + cvRound(r2.height >> 1)));
-		
-		return (dist <= (3 * sigma)) ? (1 / sqrt(2 * CV_PI * sigma * sigma)) * exp(double(-(diff.x*diff.x + diff.y*diff.y) / (2 * sigma * sigma))) : -1;
-	}
-
 	/// Obtain the possibility regions by thresholding
 	vector<Point> getLocs(const Mat& src)
 	{
@@ -241,20 +300,39 @@ public:
 		return locs;
 	}
 	
+	/// get Cosine distance
+	double getCosineDist(const Mat& src, const Mat& tar)
+	{
+		Mat sp, tp;
+		if (src.channels() == 3 || tar.channels() == 3)
+		{
+			cvtColor(src, sp, CV_BGR2Luv);
+			cvtColor(tar, tp, CV_BGR2Luv);
+		}
+		else
+		{
+			sp = src.clone();
+			tp = tar.clone();
+		}
+		return sp.dot(tp) / (norm(sp) * norm(tp));
+	}
+
 	/// Obtain the highest possibility region by using the fusion weight
-	Rect getMaxloc(const Mat& weight, const vector<Point>& locs, const Rect& prev_roi, const Mat& tmplate, Mat& target)
+	Rect getMaxloc(const Mat& weight, const vector<Point>& locs, const Rect& prev_roi, const Mat& tmplate, const Mat& target)
 	{
 		/// predict the possible roi & its center
 		int x1 = prev_roi.x + cvRound(prev_roi.width >> 1);
 		int y1 = prev_roi.y + cvRound(prev_roi.height >> 1);
+		//
+		String tmpHash = getpHash(tmplate);
 
-		vector<double> v1(locs.size()), v2(locs.size()), v3(locs.size()), v4(locs.size()), w(locs.size());
+		vector<double> v1(locs.size()), v2(locs.size()), v3(locs.size()), v4(locs.size()), v5(locs.size()), v6(locs.size()), w(locs.size());
 		/// looping
 		for (int i = 0; i < locs.size(); i++)
 		{
 			Point loc = locs.at(i);
 			/// v1 is obtained from the template matching; if the value is higher, it means that the region is like the compared one 
-			v1.at(i) = weight.at<float>(loc);
+			v1.at(i) = 1.0 - weight.at<float>(loc);
 			/// v2 is obtained from the SAD difference; if the value is lower, it means that the region is like the compared one 
 			Rect roi = Rect(loc.x, loc.y, prev_roi.width, prev_roi.height);
 			v2.at(i) = getSAD(tmplate, target(roi));
@@ -264,6 +342,11 @@ public:
 			v3.at(i) = getDist(Point(x1, y1), Point(x2, y2));
 			/// v4 is the color weight; if the image between the objects is similiar, the value is low
 			v4.at(i) = getColordiff(tmplate, target(roi));
+			/// v5 is the color weight; if the image between the objects is similiar, the value is high
+			v5.at(i) = 1.0 - getCosineDist(tmplate, target(roi));
+			// 
+			String tpHash = getpHash(target(roi));
+			v6.at(i) = getHammingDist(tmpHash, tpHash) / 64.0;
 		}
 
 		normalize(v2, v2, 0, 1, NORM_MINMAX, -1, Mat());
@@ -272,12 +355,12 @@ public:
 
 		/// looping
 		for (int i = 0; i < locs.size(); i++)
-		{
-			/// total weight w is the fusion weight; v1 is the template matching weight;  v2 is the SAD weight;  v3 is the distance weight;
-			v1.at(i) = 1 - v1.at(i);
-			w.at(i) = v1.at(i) + v2.at(i) + v3.at(i) + v4.at(i);
+		{	/// total weight w is the fusion weight; v1 is the template matching weight;  v2 is the SAD weight;  v3 is the distance weight;
+			w.at(i) = v1.at(i) + v2.at(i) + v3.at(i) + v6.at(i);
+			if(target.channels() > 1)
+				w.at(i)+= (v4.at(i) + v5.at(i));
 		}
-
+		
 		/// get the max weight and its position
 		Point minLoc;
 		minMaxLoc(w, NULL, NULL, &minLoc, NULL, Mat());
@@ -285,40 +368,13 @@ public:
 		return Rect(locs.at(id).x, locs.at(id).y, prev_roi.width, prev_roi.height);
 	}
 
-	/// set search range of the target image (3.1 times larger than the template)
-	Rect searchArea(const Rect& roi)
-	{
-		/// Down-sampling scale ratio is ok at scale ratio 5 
-		double range = 6.2;
-		Rect new_roi = roi;
-		int cx = new_roi.x + cvRound(new_roi.width >> 1);
-		int cy = new_roi.y + cvRound(new_roi.height >> 1);
-		int radius = cvRound(min(roi.width, roi.height) >> 1);
-		new_roi.x = cx - radius * cvRound(range * 0.5);
-		new_roi.y = cy - radius * cvRound(range * 0.5);
-		new_roi.width = cvRound(range * radius);
-		new_roi.height = cvRound(range * radius);
-		return new_roi;
-	}
 
 	/// Template Matching 
 	Rect TMatch(const Mat& target, const Mat& tmplate, const Rect prev_roi)
-	{
-		/// set search range of the target image (3 times larger than the template)
-		Rect new_roi = searchArea(prev_roi);
-		
-		/// boundary check
-		boundaryCheck(new_roi, target);
-		
-		/// Extract the searching image using mask
-		Mat mask = cv::Mat::zeros(target.rows, target.cols, CV_8U);
-		mask(new_roi) = 255;
-		Mat new_search;
-		target.copyTo(new_search,mask);
-
-		/// Do the Matching and Normalize
+	{ 
 		Mat weight;
-		matchTemplate(new_search, tmplate, weight, match_method);
+		/// Do the Matching and Normalize
+		matchTemplate(target, tmplate, weight, match_method);
 		normalize(weight, weight, 0, 1, NORM_MINMAX, -1, Mat());
 		if (match_method == 0 || match_method == 1)
 			weight = 1 - weight;
@@ -327,20 +383,208 @@ public:
 		vector<Point>locs = getLocs(weight);
 
 		/// return the highest possibility region
-		return getMaxloc(weight, locs, prev_roi, tmplate, new_search);
+		return getMaxloc(weight, locs, prev_roi, tmplate, target);
 	}
 
-	
+	//get Hamming Distance
+	int getHammingDist(string &str1, string &str2)
+	{
+		if ((str1.size() != 64) || (str2.size() != 64))
+			return -1;
+		int difference = 0;
+		for (int i = 0; i < 64; i++)
+		{
+			if (str1[i] != str2[i])
+				difference++;
+		}
+		return difference;
+	}
+
+	double getHistcomp(const Mat& src, const Mat& tar)
+	{
+		/// Using 50 bins for hue and 60 for saturation
+		int bins = 256; 
+		int histSize[] = { bins};
+
+		// hue varies from 0 to 179, saturation from 0 to 255
+		float range[] = { 0, 256 };
+
+		const float* ranges[] = { range};
+
+		// Use the o-th and 1-st channels
+		int ch0[] = { 0 };
+		int ch1[] = { 1 };
+		int ch2[] = { 2 };
+
+		/// Histograms
+		Mat hist_sa, hist_sb, hist_sc;
+		Mat hist_ta, hist_tb, hist_tc;
+		Mat hsv_base = src.clone();
+		Mat hsv_test = tar.clone();
+
+
+		/// Calculate the histograms for the HSV images
+		calcHist(&hsv_base, 1, ch0, Mat(), hist_sa, 1, histSize, ranges, true, false);
+		normalize(hist_sa, hist_sa, 0, 1, NORM_MINMAX, -1, Mat());
+		calcHist(&hsv_base, 1, ch1, Mat(), hist_sb, 1, histSize, ranges, true, false);
+		normalize(hist_sb, hist_sb, 0, 1, NORM_MINMAX, -1, Mat());
+		calcHist(&hsv_base, 1, ch2, Mat(), hist_sc, 1, histSize, ranges, true, false);
+		normalize(hist_sc, hist_sc, 0, 1, NORM_MINMAX, -1, Mat());
+
+		calcHist(&hsv_test, 1, ch0, Mat(), hist_ta, 1, histSize, ranges, true, false);
+		normalize(hist_ta, hist_ta, 0, 1, NORM_MINMAX, -1, Mat());
+		calcHist(&hsv_test, 1, ch1, Mat(), hist_tb, 1, histSize, ranges, true, false);
+		normalize(hist_tb, hist_tb, 0, 1, NORM_MINMAX, -1, Mat());
+		calcHist(&hsv_test, 1, ch2, Mat(), hist_tc, 1, histSize, ranges, true, false);
+		normalize(hist_tc, hist_tc, 0, 1, NORM_MINMAX, -1, Mat());
+
+		double v0 = 1.0 - compareHist(hist_sa, hist_ta, 3);
+		double v1 = 1.0 - compareHist(hist_sb, hist_tb, 3);
+		double v2 = 1.0 - compareHist(hist_sc, hist_tc, 3);
+		double v=max(max(v0, v1), v2);
+		double vv = (v0 + v1 + v2) / 3;
+		return (v > vv) ? v : vv;
+	}
+
+	vector<double> getColorange(const Mat& source, const Rect& roi)
+	{
+		Rect rec;
+		int r = 13;
+		rec.x = roi.x + r;
+		rec.y = roi.y + r;
+		rec.width = roi.width - (r);
+		rec.height = roi.height - (r);
+		Mat tmp = source(rec);
+		Mat tmpColor, ch[3], tmpmask;
+		//tmpColor = bgr2chromaticity(tmp);
+		cvtColor(tmp, tmpColor, CV_BGR2HSV);
+		split(tmpColor, ch);
+		double minh = 0, maxh = 0, mins = 0, maxs = 0, minv = 0, maxv = 0;
+		minMaxLoc(ch[0], &minh, &maxh);
+		minMaxLoc(ch[1], &mins, &maxs);
+		minMaxLoc(ch[2], &minv, &maxv);
+		vector<double> colorange;
+		colorange.push_back(minh);
+		colorange.push_back(maxh);
+		colorange.push_back(mins);
+		colorange.push_back(maxs);
+		colorange.push_back(minv);
+		colorange.push_back(maxv);
+		return colorange;
+	}
+
+	Mat bgr2chromaticity(const Mat& src)
+	{
+		Mat tmp(src.size(), src.type());
+		for (int i = 0; i < src.rows; i++)
+			for (int j = 0; j < src.cols; j++)
+			{
+				Vec3f intensity = src.at<Vec3b>(i, j);
+				double sum = intensity.val[0] + intensity.val[1] + intensity.val[2];
+				double b = intensity.val[0] / sum;
+				double g = intensity.val[1] / sum;
+				double r = intensity.val[2] / sum;
+				tmp.data[tmp.step[0] * i + tmp.step[1] * j + 0] = (uchar)(b * 255);
+				tmp.data[tmp.step[0] * i + tmp.step[1] * j + 1] = (uchar)(g * 255);
+				tmp.data[tmp.step[0] * i + tmp.step[1] * j + 2] = (uchar)(r * 255);
+			}
+		return tmp;
+	}
+
+	bool boundCheck(const Rect& roi, const Mat& image)
+	{
+		int br = 2;
+		int left = br, right = br + image.cols - 2 * br, up = br, down = br + image.rows - 2 * br;
+		return ((roi.x < left || roi.y < up) || (roi.x < left || roi.y + roi.height > down) || (roi.x + roi.width > right || roi.y < left) || (roi.x + roi.width > right || roi.y + roi.height > down)) ? false : true;
+	}
+
+	bool compColor(const Mat& prev_tmplate, const Mat& tmplate, const Mat& image, const Rect& m1rec, const Rect& m2rec, Rect& match_roi, const vector<double>& colorange, vector<double>& cth, const Rect& prev_roi, const Mat& tmphist, const int& id, vector<double>& sth)
+	{
+		Mat tmpColor, prevtmpColor, m1Color, m2Color, m1, m2;
+		tmpColor = tmplate.clone();
+		prevtmpColor = prev_tmplate.clone();
+		m1 = image(m1rec);
+		m2 = image(m2rec);
+		tmpColor = bgr2chromaticity(tmpColor);
+		m1Color = bgr2chromaticity(m1);
+		m2Color = bgr2chromaticity(m2);
+		if (debug_flag) { imgshow(tmpColor); imgshow(m1Color); imgshow(m2Color); }
+
+		double s1 = getSAD(tmpColor, m1Color) * getSAD(tmplate, m1);
+		double s2 = getSAD(tmpColor, m2Color) * getSAD(tmplate, m2);
+		double c1 = 1.0 - (tmpColor.dot(m1Color) / (norm(tmpColor) * norm(m1Color))) * (tmplate.dot(m1) / (norm(tmplate) * norm(m1)));
+		double c2 = 1.0 - (tmpColor.dot(m2Color) / (norm(tmpColor) * norm(m2Color))) * (tmplate.dot(m2) / (norm(tmplate) * norm(m2)));
+
+		double  ss = 0, cc = 0;
+		if ((s1 <= s2 && c1 <= c2) || (s1 > s2 && c1 <= c2))
+		{
+			match_roi = m1rec;
+			ss = s1;
+			cc = c1;
+		}
+		else if ((s1 > s2 && c1 > c2) || (s1 <= s2 && c1 > c2))
+		{
+			match_roi = m2rec;
+			ss = s2;
+			cc = c2;
+		}
+
+		Scalar cthmean, cthstd, sthmean, sthstd;
+		meanStdDev(sth, sthmean, sthstd);
+		double stmean = (double)sthmean.val[0];
+		double ststd = (double)sthstd.val[0];
+		meanStdDev(cth, cthmean, cthstd);
+		double ctmean = (double)cthmean.val[0];
+		double ctstd = (double)cthstd.val[0];
+		
+		bool pflag = boundCheck(match_roi, image);
+		bool cflag = true, sflag = true;
+		double clb = (ctmean - ctstd) / 1.5;
+		double cub = 2 * (ctmean + ctstd);
+		double slb = (stmean - ststd) / 1.5;
+		double sub = 2 * (stmean + ststd);
+
+		if(cth.size()>3)
+			cflag = (cc <= cub && cc >= clb) ? true : false;
+		if (cflag)
+		{
+			if (cth.at(0) == 0)
+				cth.at(0) = cc;
+			else
+				cth.push_back(cc);
+		}
+		if (sth.size() > 3)
+			sflag = (ss <= sub && ss >= slb) ? true : false;
+		if (sflag)
+		{
+			if (sth.at(0) == 0)
+				sth.at(0) = ss;
+			else
+				sth.push_back(ss);
+		}
+		bool trflag = (pflag && cflag && sflag) ? true : false;
+ 		return trflag;
+
+
+	}
+
 	/// Run the algorithm
-	bool runObjectTrackingAlgorithm (const cv::Mat& source, std::map<int, cv::Rect>& objects)
+	bool runObjectTrackingAlgorithm (const cv::Mat& target, std::map<int, cv::Rect>& objects)
 	{
 		objects.clear();
+	
+		frame_id++;
 
-		/// image initialization
-		Mat image = source.clone();
+		///
+		String tarpHash = getpHash(target);
+		imflag = ((1.0 - getHammingDist(srcpHash, tarpHash) / 64.0) > 0.5) ? true : false;
+		
+
+		/// image initialization; target: original image size; image: resized image
+		Mat image = target.clone();
 
 		/// return the image re-sampling ratio
-		scale_ratio = resampleRatio(source);
+		scale_ratio = resampleRatio(target);
 		
 		/// check re-sampling is essential
 		if (resampling)
@@ -355,79 +599,151 @@ public:
 		auto itr = m_active_objects.begin();
 		for ( ; itr != m_active_objects.end(); ++itr )
 		{
+			cout<<"frame "<< frame_id<<" obj "<<itr->first<<endl;
+
 			/// original template & its roi
 			Mat tmplate = itr->second;
-			cv::Rect roi = m_active_roi.at(itr->first);
+			/// Previous frame ROI position & down-sampling
+			cv::Rect prev_roi = m_active_prev_roi.at(itr->first);
+			Mat prev_tmplate = m_active_prev_tmplate.at(itr->first);
+			Mat tmphist= m_active_tmplate_hist.at(itr->first);
+			vector<double> colorange = m_active_tmplate_colorange.at(itr->first);
+			vector<double> cth = m_active_tmplate_cth.at(itr->first);
+			vector<double> sth = m_active_tmplate_sth.at(itr->first);
 
 			/// down-sampling
 			if (resampling)
 			{
 				imResample(tmplate, scale_ratio, 1);
-				rectResample(roi, scale_ratio, 1);
+				rectResample(prev_roi, scale_ratio, 1);
+				imResample(prev_tmplate, scale_ratio, 1);
 			}
 
 			/// Create gray-template and its edge image
-			Mat gray_tmplate;
+			Mat gray_tmplate, edged, prev_edged;
 			cvtColor(tmplate, gray_tmplate, CV_BGR2GRAY);
-			Mat edged = convert2edge(gray_tmplate);
+			edged = convert2edge(gray_tmplate);
 			
-			/// Previous frame ROI position & down-sampling
-			cv::Rect prev_roi = m_active_prev_roi.at(itr->first);
-			if (resampling)
-				rectResample(prev_roi, scale_ratio, 1);
+			cvtColor(prev_tmplate, gray_tmplate, CV_BGR2GRAY);
+			prev_edged = convert2edge(gray_tmplate);
 
-			//debug_flag = (frame_id == 544 && itr->first == 2) ? true : false;
+			//debug_flag = (frame_id == 314 && itr->first == 0 || frame_id == 345 && itr->first == 0) ? true : false;
+		
+			/// camshift
+			Rect selection = camshiftArea(image, tmphist, prev_roi, colorange);
+			if(debug_flag) imgshow(image, selection);
+			Mat im = extrROI(image, selection);
+			Mat ed = extrROI(edges, selection);
 
-			/// Template matching 2 find the most similar region; m1/m2: the original target andits edge image  
-			Rect m1rec = TMatch(image, tmplate, prev_roi);
-			Rect m2rec = TMatch(edges, edged, prev_roi);
-
-			/// Using the Gaussian weight of the distance 2 compare the regions
-			double s1 = getLocWeight(prev_roi, m1rec);
-			double s2 = getLocWeight(prev_roi, m2rec);
+			/// Template matching 2 find the most similar region; m1/m2: the original target andits edge image
+			Rect m1rec = TMatch(im, tmplate, prev_roi);
+			Rect m2rec = TMatch(ed, edged, prev_roi);
 			
-			/// comparison: the higher value means the region is closed to the previous frame's roi
 			Rect match_roi;
-			if (s1 < 0 && s2 < 0)
+			bool trflag = compColor(prev_tmplate, tmplate, image, m1rec, m2rec, match_roi, colorange, cth, prev_roi, tmphist, itr->first, sth);
+			if (resampling)
 			{
-				/// if the template region is missing in the current frame, the missing frame number adds 1
-				m_active_missing.at(itr->first) += 1;
+				rectResample(match_roi, scale_ratio, 0);
+				rectResample(prev_roi, scale_ratio, 0);
+			}
+			if (trflag) 
+			{			
+				/// draw + save tracking region
+				objects.insert(std::make_pair(itr->first, match_roi));
+			
+				/// Update Parameter: update the roi 
+				m_active_prev_roi.at(itr->first) = match_roi;
+			
+				///
+				m_active_prev_tmplate.at(itr->first) = target(match_roi);
 
-				/// If the number of frame's missing template is > 4, do rematch
-				/// else use the moving vector obtained from the previous frame and the previous 2 frame 2 predict the region in the current frame  
-				Rect adj_roi = (m_active_missing.at(itr->first) > 4) ? TMatch(image, tmplate, prev_roi) : getLinepts(prev_roi, m_active_pts_vector.at(itr->first));
+				/// 
+				m_active_tmplate_colorange.at(itr->first) = getColorange(target, match_roi);
 
-				/// boundary check
-				adj_roi.x = max(0, adj_roi.x);
-				adj_roi.x = min(adj_roi.x, image.cols - 1);
-				adj_roi.y = max(0, adj_roi.y);
-				adj_roi.y = min(adj_roi.y, image.rows - 1);
-
-				/// update match_roi
-				match_roi = adj_roi;
 			}
 			else
-				match_roi = (s1 >= s2) ? m1rec : m2rec;
+			{
+				cout << "obj " << itr->first << " not draw" << endl;
 
-			/// Up-sampling
-			if (resampling)
-				rectResample(match_roi, scale_ratio, 0);
-
-			/// if the template region is found, set the missing frame number 2 zero 
-			if (s1 > 0 || s2 > 0)
-				m_active_missing.at(itr->first) = 0;
-			
-			/// draw + save tracking region
-			objects.insert(std::make_pair(itr->first, match_roi));
-			
-			/// Update Parameter: update the roi 
-			m_active_prev_roi.at(itr->first) = match_roi;
-			
-			/// update the moving vector from the current frame and the previous frame 
-			m_active_pts_vector.at(itr->first) = getLinevec(prev_roi, match_roi);
+				/// Update Parameter: restore the previous tmplate back 2 the original tmplate 
+				m_active_prev_tmplate.at(itr->first) = m_active_objects.at(itr->first);
+			}
+			// 
+			m_active_tmplate_cth.at(itr->first) = cth;
+				
+			/// 
+			m_active_tmplate_sth.at(itr->first) = sth;
  
 		}
+		///
+		if(imflag) 
+			srcpHash = tarpHash;
+
 		return (objects.size() > 0);
+	}
+
+	Mat extrROI(const Mat& img, const Rect& roi)
+	{
+		Mat mask = cv::Mat::zeros(img.rows, img.cols, CV_8U);
+		mask(roi) = 255;
+		Mat new_img;
+		img.copyTo(new_img, mask);
+		return new_img;
+	}
+
+	Mat extrROI(const Mat& img, const Rect& r1, const Rect& r2)
+	{
+		Mat mask = cv::Mat::zeros(img.rows, img.cols, CV_8U);
+		mask(r1) = 255;
+		mask(r2) = 255;
+		Mat new_img;
+		img.copyTo(new_img, mask);
+		return new_img;
+	}
+
+	Mat extrROI(const Mat& img, const Mat& mask)
+	{
+		Mat new_img;
+		img.copyTo(new_img, mask);
+		return new_img;
+	}
+
+
+
+	/// Debug: imshow 
+	void imgshow(const Mat& img)
+	{
+		namedWindow("Display window", WINDOW_NORMAL);
+		imshow("Display window", img);
+		waitKey(0);
+		cvDestroyAllWindows();
+	}
+
+	void imgshow(const Mat& img, const Rect& roi)
+	{
+		Mat new_img = extrROI(img, roi);
+		namedWindow("Display window", WINDOW_NORMAL);
+		imshow("Display window", new_img);
+		waitKey(0);
+		cvDestroyAllWindows();
+	}
+	void imgshow(const Mat& img, const Mat& mask)
+	{
+		Mat tmp;
+		img.copyTo(tmp, mask);
+		namedWindow("Display window", WINDOW_NORMAL);
+		imshow("Display window", tmp);
+		waitKey(0);
+		cvDestroyAllWindows();
+	}
+	void imgshow(const Mat& img, const Mat& mask, const Rect& roi)
+	{
+		Mat tmp;
+		img.copyTo(tmp, mask);
+		namedWindow("Display window", WINDOW_NORMAL);
+		imshow("Display window", tmp(roi));
+		waitKey(0);
+		cvDestroyAllWindows();
 	}
 
 private:
@@ -444,6 +760,8 @@ private:
 	/// template matching method: 0/1: SQDIFF/Normalized-SQDIFF; 2/3: TM_CCORR/Normalized-TM_CCORR; 4/5: CCOEFF/Normalized-CCOEFF; 
 	int match_method;
 
+	String srcpHash;
+
 	/// the template roi in the start frame 
 	std::map<int, cv::Rect> m_active_roi;
 
@@ -456,9 +774,31 @@ private:
 	/// the frequency of missing template 
 	std::map<int, int> m_active_missing;
 
+	/// the previous tmplate  
+	std::map<int, Mat> m_active_prev_tmplate;
+
+	/// the previous tmplate  
+	std::map<int, Mat> m_active_tmplate_hist;
+
+	/// the previous tmplate  
+	std::map<int, Mat> m_active_tmplate_prev_hist;
+
+	/// the previous tmplate  
+	std::map<int, vector<double>> m_active_tmplate_colorange;
+
+	/// the frequency of missing template 
+	std::map<int, vector<double>> m_active_tmplate_sth;
+
+	/// the frequency of missing template 
+	std::map<int, vector<double>> m_active_tmplate_cth;
+
+
+	///
+	bool imflag;
+
 	/// debug
-	//int frame_id;
-	//bool debug_flag;
+	int frame_id;
+	bool debug_flag;
 };
 
 
