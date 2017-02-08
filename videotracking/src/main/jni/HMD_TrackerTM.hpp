@@ -32,120 +32,170 @@ const std::string db_output("/sdcard/output/");
 using namespace cv;
 using namespace std;
 
+RNG rng(12345);
+
 class TrackerTM : public AbstractTracker
 {
 public:
 
-	TrackerTM() :  AbstractTracker()
+	TrackerTM() : AbstractTracker()
 	{
 		match_method = 5;
 		resampling = true;
-		imsize = Point(80, 60);
-		frame_id = 92;
+		//imsize = cv::Point(80, 60);
+		imsizew = cv::Point(80, 60);
+		imsizeh = cv::Point(60, 80);
 		debug_flag = false;
-		scale_ratio = Point(1, 1);
+		scale_ratio = cv::Point(1, 1);
+		frame_id = 91;
+	}
+
+	virtual void setFrameID(const int& id)
+	{
+		frame_id = id;
 	}
 
 	/// add a tracking obj
 	virtual int addTrackingObject(const cv::Mat& source, const cv::Rect& obj_roi)
 	{
-		
+
 		int obj_id = AbstractTracker::addTrackingObject(source, obj_roi);
-		
+
 		if (obj_id == 0) srcpHash = getpHash(source);
 
 		if (obj_id >= 0)
 		{
 			m_active_roi.insert(std::make_pair(obj_id, obj_roi));
 			m_active_prev_roi.insert(std::make_pair(obj_id, obj_roi));
-			m_active_pts_vector.insert(std::make_pair(obj_id, Point(0,0)));
-			m_active_missing.insert(std::make_pair(obj_id, 0));
 			m_active_prev_tmplate.insert(std::make_pair(obj_id, source(obj_roi)));
 			m_active_tmplate_hist.insert(std::make_pair(obj_id, getHist(source(obj_roi))));
-			//m_active_tmplate_prev_hist.insert(std::make_pair(obj_id, getHist(source(obj_roi))));
 			m_active_tmplate_colorange.insert(std::make_pair(obj_id, getColorange(source, obj_roi)));
-			vector<double> initTh(1);
-			initTh.at(0) = 0;
-			m_active_tmplate_cth.insert(std::make_pair(obj_id, initTh));
-			m_active_tmplate_sth.insert(std::make_pair(obj_id, initTh));
+			m_active_tmplate_probth.insert(std::make_pair(obj_id, vector<double>(1, 0.0)));
+			m_active_tmplate_miss.insert(std::make_pair(obj_id, 0));
 		}
+		//
+		//imgshow(source(obj_roi));
+		//drawHist(source(obj_roi));
 
 		return obj_id;
 	}
 
-
-	Mat getHist(const Mat& tmplate)
+	void drawHist(const cv::Mat src)
 	{
-		Mat tmphsv, tmpmask, tmphue, tmphist;
-		int hsize = 16;
+		/// Separate the image in 3 places ( B, G and R )
+		vector<Mat> bgr_planes;
+		split(src, bgr_planes);
+
+		/// Establish the number of bins
+		int histSize = 256;
+
+		/// Set the ranges ( for B,G,R) )
+		float range[] = { 0, 256 };
+		const float* histRange = { range };
+
+		bool uniform = true; bool accumulate = false;
+
+		Mat b_hist, g_hist, r_hist;
+
+		/// Compute the histograms:
+		calcHist(&bgr_planes[0], 1, 0, Mat(), b_hist, 1, &histSize, &histRange, uniform, accumulate);
+		calcHist(&bgr_planes[1], 1, 0, Mat(), g_hist, 1, &histSize, &histRange, uniform, accumulate);
+		calcHist(&bgr_planes[2], 1, 0, Mat(), r_hist, 1, &histSize, &histRange, uniform, accumulate);
+
+		// Draw the histograms for B, G and R
+		int hist_w = 512; int hist_h = 400;
+		int bin_w = cvRound((double)hist_w / histSize);
+
+		Mat histImage(hist_h, hist_w, CV_8UC3, Scalar(0, 0, 0));
+
+		/// Normalize the result to [ 0, histImage.rows ]
+		normalize(b_hist, b_hist, 0, histImage.rows, NORM_MINMAX, -1, Mat());
+		normalize(g_hist, g_hist, 0, histImage.rows, NORM_MINMAX, -1, Mat());
+		normalize(r_hist, r_hist, 0, histImage.rows, NORM_MINMAX, -1, Mat());
+
+		/// Draw for each channel
+		for (int i = 1; i < histSize; i++)
+		{
+			line(histImage, Point(bin_w*(i - 1), hist_h - cvRound(b_hist.at<float>(i - 1))),
+				Point(bin_w*(i), hist_h - cvRound(b_hist.at<float>(i))),
+				Scalar(255, 0, 0), 2, 8, 0);
+			line(histImage, Point(bin_w*(i - 1), hist_h - cvRound(g_hist.at<float>(i - 1))),
+				Point(bin_w*(i), hist_h - cvRound(g_hist.at<float>(i))),
+				Scalar(0, 255, 0), 2, 8, 0);
+			line(histImage, Point(bin_w*(i - 1), hist_h - cvRound(r_hist.at<float>(i - 1))),
+				Point(bin_w*(i), hist_h - cvRound(r_hist.at<float>(i))),
+				Scalar(0, 0, 255), 2, 8, 0);
+		}
+
+		/// Display
+		namedWindow("calcHist Demo", CV_WINDOW_AUTOSIZE);
+		imshow("calcHist Demo", histImage);
+
+		waitKey(0);
+	}
+
+	cv::Mat getHist(const cv::Mat& tmplate)
+	{
+		cv::Mat tmphsv, tmpmask, tmphue, tmphist;
+		int hsize = 32;
 		float hranges[] = { 0, 180 };
 		int ch[] = { 0, 0 };
 		const float* phranges = hranges;
 		/// tmplate HSV
 		cvtColor(tmplate, tmphsv, CV_BGR2HSV);
 		inRange(tmphsv, Scalar(0, 60, 32), Scalar(180, 255, 255), tmpmask);
-		Mat cha[3];
+		cv::Mat cha[3];
 		split(tmphsv, cha);
 		calcHist(&cha[0], 1, 0, tmpmask, tmphist, 1, &hsize, &phranges);
 		normalize(tmphist, tmphist, 0, 255, NORM_MINMAX);
 		return tmphist;
 	}
 
-	Rect camshiftArea(const Mat& target, const Mat& tmphist, const Rect& prev_roi, const vector<double>& colorange)
+	cv::Rect camshiftArea(const cv::Mat& target, const cv::Mat& tmphist, const cv::Rect& prev_roi, const std::vector<double>& colorange, cv::Mat& backproj)
 	{
-		Mat tarColor, tar, tarmask, backproj;
+		cv::Mat tarColor, tar, tarmask;
 		int r = 5;
 		Rect selection = Rect(prev_roi.x - r, prev_roi.y - r, prev_roi.width + r, prev_roi.height + r) & Rect(0, 0, target.cols, target.rows);;
-		int hsize = 16;
-		float hranges[] = { 0, 180};
-		int ch[] = { 0, 0 };
+		float hranges[] = { 0, 180 };
 		const float* phranges = hranges;
-		
-		/// camshift
+		/// camshift pre-processing
 		cvtColor(target, tarColor, CV_BGR2HSV);
 		double m1 = (colorange.at(3) - colorange.at(2)) / r;
 		double m2 = (colorange.at(5) - colorange.at(4)) / r;
-		inRange(tarColor, Scalar(0, max(0.0, colorange.at(2) - m1), max(0.0, colorange.at(4) - m2)), Scalar(180, min(colorange.at(3) - m1, 255.0), min(colorange.at(5) - m2, 255.0)), tarmask);
-		//inRange(tarColor, Scalar(0, 60, 32), Scalar(180, 255, 255), tarmask);
+		inRange(tarColor, Scalar(0, (colorange.at(2) - m1), (colorange.at(4) - m2)), Scalar(180, (colorange.at(3) - m1), (colorange.at(5) - m2)), tarmask);
 		tar = extrROI(tarColor, tarmask);
-		//imgshow(target, tarmask);
-		Mat chs[3];
+		cv::Mat chs[3];
 		split(tar, chs);
+		/// camshift
 		calcBackProject(&chs[0], 1, 0, tmphist, backproj, &phranges);
 		RotatedRect trackBox = CamShift(backproj, selection, TermCriteria(TermCriteria::EPS | TermCriteria::COUNT, 10, 1));
-		//if (debug_flag) { Mat tt = target.clone();  ellipse(tt, trackBox, Scalar(255, 0, 0)); imgshow(tt); }
-		selection.x -= r;
-		selection.y -= r;
-		selection.width += 4*r;
-		selection.height += 4*r;
+		selection.x -= (int)r;
+		selection.y -= (int)r;
+		selection.width += 4 * (int)r;
+		selection.height += 4 * (int)r;
 		selection &= Rect(0, 0, target.cols, target.rows);
 		return selection;
 	}
 
 	/// calculate Perceptual hash algorithm (pHash)
-	std::string getpHash(const Mat &src)
+	std::string getpHash(const cv::Mat &src)
 	{
-		Mat img, dst;
+		cv::Mat img, dst;
 		std::string rst(64, '\0');
 		double dIdex[64];
 		double mean = 0.0;
 		int k = 0;
 		if (src.channels() == 3)
-		{
 			cvtColor(src, img, CV_BGR2GRAY);
-			img = Mat_<double>(img);
-		}
 		else
-		{
 			img = src.clone();
-			img = Mat_<double>(src);
-		}
+		img = Mat_<double>(img);
 
 		/* resize */
-		resize(img, img, Size(8, 8));
+		cv::resize(img, img, Size(8, 8));
 
 		/* dct*/
-		dct(img, dst);
+		cv::dct(img, dst);
 
 		/* the left-top 8 x 8 corner */
 		for (int i = 0; i < 8; ++i) {
@@ -170,7 +220,7 @@ public:
 	}
 
 	/// rectangle re-sampling: 0:up-sampling; 1:down-sampling
-	void rectResample(Rect& roi, const Point& ratio, const bool& resample_flag)
+	void rectResample(cv::Rect& roi, const cv::Point& ratio, const bool& resample_flag)
 	{
 		/// down-sampling
 		if (resample_flag)
@@ -191,7 +241,7 @@ public:
 	}
 
 	/// image re-sampling: 0:up-sampling; 1:down-sampling
-	void imResample(Mat& image, const Point& ratio, const bool& resample_flag)
+	void imResample(cv::Mat& image, const cv::Point& ratio, const bool& resample_flag)
 	{
 		/// down-sampling or up-sampling
 		if (resample_flag)
@@ -201,10 +251,15 @@ public:
 	}
 
 	/// calculating the image re-sampling ratio
-	Point resampleRatio(const Mat& source)
+	cv::Point resampleRatio(const cv::Mat& source)
 	{
+		cv::Point imsize;
+		if (source.rows >= source.cols)
+			imsize = imsizeh;
+		else
+			imsize = imsizew;
 		/// re-sampling ratio
-		Point ratio;
+		cv::Point ratio;
 		ratio.y = source.rows / imsize.y;
 		ratio.x = source.cols / imsize.x;
 		resampling = (ratio.x == 1 && ratio.y == 1) ? false : true;
@@ -212,22 +267,22 @@ public:
 	}
 
 	/// calculate the distance between 2 regions
-	float getDist(const Rect &p, const Rect &q)
+	float getDist(const cv::Rect &p, const cv::Rect &q)
 	{
-		Point p1 = Point(p.x + cvRound(p.width >> 1), p.y + cvRound(p.height >> 1));
-		Point p2 = Point(q.x + cvRound(q.width >> 1), q.y + cvRound(q.height >> 1));
+		cv::Point p1 = cv::Point(p.x + cvRound(p.width >> 1), p.y + cvRound(p.height >> 1));
+		cv::Point p2 = cv::Point(q.x + cvRound(q.width >> 1), q.y + cvRound(q.height >> 1));
 		return getDist(p1, p2);
 	}
 
 	/// calculate the distance between 2 points
-	float getDist(const Point &p, const Point &q)
+	float getDist(const cv::Point &p, const cv::Point &q)
 	{
-		Point diff = p - q;
+		cv::Point diff = p - q;
 		return cv::sqrt(float(diff.x * diff.x + diff.y * diff.y));
 	}
 
 	/// get the color difference by using CIE Luv color space
-	double getColordiff(const Mat& a, const Mat& b)
+	double getColordiff(const cv::Mat& a, const cv::Mat& b)
 	{
 		Mat m, n;
 		if (a.channels() > 1 && b.channels() > 1)
@@ -244,66 +299,50 @@ public:
 	}
 
 	/// obtain the sum of absolute difference (SAD) between 2 images 
-	double getSAD(const Mat& source, const Mat& target)
+	double getSAD(const cv::Mat& source, const cv::Mat& target)
 	{
-		Scalar x = cv::sum(cv::abs(source - target));
-		return (source.channels() == 1 || source.channels() == 1) ? x.val[0] : (x.val[0] + x.val[1] + x.val[2]) / 3;
+		cv::Scalar x = cv::sum(cv::abs(source - target));
+		return (source.channels() == 1 || target.channels() == 1) ? x.val[0] : (x.val[0] + x.val[1] + x.val[2]) / 3;
 	}
 
 	/// convert the image 2 its edge image
-	Mat convert2edge(const Mat& source)
+	cv::Mat convert2edge(const cv::Mat& source)
 	{
 		/// initialization
-		int edge_flag = 3;
-		int th1 = 100, th2 = 200;
-		Mat gx, absgx, gy, absgy, dst;
-		Mat destination;
+		cv::Mat gx, absgx, gy, absgy, dst;
+		cv::Mat destination;
 
-		/// selection
-		switch (edge_flag)
-		{
-		case 1:
-			Canny(source, destination, th1, th2);
-			break;
-		case 2:
-			Laplacian(source, dst, CV_16S, 3, 1, 0, BORDER_DEFAULT);
-			convertScaleAbs(dst, destination);
-			break;
-		case 3:		
-			Sobel(source, gx, CV_16S, 1, 0, 3, 1, 1, BORDER_DEFAULT);
-			convertScaleAbs(gx, absgx);
-			Sobel(source, gy, CV_16S, 0, 1, 3, 1, 1, BORDER_DEFAULT);
-			convertScaleAbs(gy, absgy);
-			addWeighted(absgx, 0.5, absgy, 0.5, 0, destination);
-			break;
-		default:
-			break;
-		}
+		Sobel(source, gx, CV_16S, 1, 0, 3, 1, 1, BORDER_DEFAULT);
+		convertScaleAbs(gx, absgx);
+		Sobel(source, gy, CV_16S, 0, 1, 3, 1, 1, BORDER_DEFAULT);
+		convertScaleAbs(gy, absgy);
+		addWeighted(absgx, 0.5, absgy, 0.5, 0, destination);
+
 		return destination;
 	}
 
 	/// Obtain the possibility regions by thresholding
-	vector<Point> getLocs(const Mat& src)
+	std::vector<Point> getLocs(const cv::Mat& src)
 	{
 		/// threshold
 		double maxValue = 0.75;
-		vector<Point> locs;
-		
+		std::vector<Point> locs;
+
 		for (int j = 0; j < src.rows; j++)
 			for (int i = 0; i < src.cols; i++)
 			{
-				float v = src.at<float>(Point(i,j));
+				float v = src.at<float>(Point(i, j));
 				if (v > maxValue)
 					locs.push_back(Point(i, j));
 			}
-		
+
 		return locs;
 	}
-	
+
 	/// get Cosine distance
-	double getCosineDist(const Mat& src, const Mat& tar)
+	double getCosineDist(const cv::Mat& src, const cv::Mat& tar)
 	{
-		Mat sp, tp;
+		cv::Mat sp, tp;
 		if (src.channels() == 3 || tar.channels() == 3)
 		{
 			cvtColor(src, sp, CV_BGR2Luv);
@@ -318,7 +357,7 @@ public:
 	}
 
 	/// Obtain the highest possibility region by using the fusion weight
-	Rect getMaxloc(const Mat& weight, const vector<Point>& locs, const Rect& prev_roi, const Mat& tmplate, const Mat& target)
+	cv::Rect getMaxloc(const cv::Mat& weight, const std::vector<Point>& locs, const cv::Rect& prev_roi, const cv::Mat& tmplate, const cv::Mat& target)
 	{
 		/// predict the possible roi & its center
 		int x1 = prev_roi.x + cvRound(prev_roi.width >> 1);
@@ -326,53 +365,53 @@ public:
 		//
 		std::string tmpHash = getpHash(tmplate);
 
-		vector<double> v1(locs.size()), v2(locs.size()), v3(locs.size()), v4(locs.size()), v5(locs.size()), v6(locs.size()), w(locs.size());
+		std::vector<double> v1(locs.size()), v2(locs.size()), v3(locs.size()), v4(locs.size()), v5(locs.size()), v6(locs.size()), w(locs.size());
 		/// looping
 		for (int i = 0; i < locs.size(); i++)
 		{
-			Point loc = locs.at(i);
+			cv::Point loc = locs.at(i);
 			/// v1 is obtained from the template matching; if the value is higher, it means that the region is like the compared one 
 			v1.at(i) = 1.0 - weight.at<float>(loc);
 			/// v2 is obtained from the SAD difference; if the value is lower, it means that the region is like the compared one 
-			Rect roi = Rect(loc.x, loc.y, prev_roi.width, prev_roi.height);
+			cv::Rect roi = cv::Rect(loc.x, loc.y, prev_roi.width, prev_roi.height);
 			v2.at(i) = getSAD(tmplate, target(roi));
 			// v3 is the distance weight; if the value is lower, it means that the region is closed to the compared one 
 			int x2 = loc.x + cvRound(prev_roi.width >> 1);
 			int y2 = loc.y + cvRound(prev_roi.height >> 1);
-			v3.at(i) = getDist(Point(x1, y1), Point(x2, y2));
-			/// v4 is the color weight; if the image between the objects is similiar, the value is low
+			v3.at(i) = getDist(cv::Point(x1, y1), cv::Point(x2, y2));
+			/// v4 is the color weight(Luv); if the image between the objects is similiar, the value is low
 			v4.at(i) = getColordiff(tmplate, target(roi));
-			/// v5 is the color weight; if the image between the objects is similiar, the value is high
+			/// v5 is the color weight(Luv); if the image between the objects is similiar, the value is high
 			v5.at(i) = 1.0 - getCosineDist(tmplate, target(roi));
-			// 
+			// v6 is the pHash value; if the image between the objects is similiar, the value is low
 			std::string tpHash = getpHash(target(roi));
 			v6.at(i) = getHammingDist(tmpHash, tpHash) / 64.0;
 		}
 
-		normalize(v2, v2, 0, 1, NORM_MINMAX, -1, Mat());
-		normalize(v3, v3, 0, 1, NORM_MINMAX, -1, Mat());
-		normalize(v4, v4, 0, 1, NORM_MINMAX, -1, Mat());
+		normalize(v2, v2, 0, 1, NORM_MINMAX, -1, cv::Mat());
+		normalize(v3, v3, 0, 1, NORM_MINMAX, -1, cv::Mat());
+		normalize(v4, v4, 0, 1, NORM_MINMAX, -1, cv::Mat());
 
 		/// looping
 		for (int i = 0; i < locs.size(); i++)
 		{	/// total weight w is the fusion weight; v1 is the template matching weight;  v2 is the SAD weight;  v3 is the distance weight;
 			w.at(i) = v1.at(i) + v2.at(i) + v3.at(i) + v6.at(i);
-			if(target.channels() > 1)
-				w.at(i)+= (v4.at(i) + v5.at(i));
+			if (target.channels() > 1)
+				w.at(i) += (v4.at(i) + v5.at(i));
 		}
-		
+
 		/// get the max weight and its position
-		Point minLoc;
-		minMaxLoc(w, NULL, NULL, &minLoc, NULL, Mat());
+		cv::Point minLoc;
+		minMaxLoc(w, NULL, NULL, &minLoc, NULL, cv::Mat());
 		int id = minLoc.x;
-		return Rect(locs.at(id).x, locs.at(id).y, prev_roi.width, prev_roi.height);
+		return cv::Rect(locs.at(id).x, locs.at(id).y, prev_roi.width, prev_roi.height);
 	}
 
 
 	/// Template Matching 
-	Rect TMatch(const Mat& target, const Mat& tmplate, const Rect prev_roi)
-	{ 
-		Mat weight;
+	cv::Rect TMatch(const cv::Mat& target, const cv::Mat& tmplate, const cv::Rect prev_roi)
+	{
+		cv::Mat weight;
 		/// Do the Matching and Normalize
 		matchTemplate(target, tmplate, weight, match_method);
 		normalize(weight, weight, 0, 1, NORM_MINMAX, -1, Mat());
@@ -380,14 +419,14 @@ public:
 			weight = 1 - weight;
 
 		/// find the possible regions
-		vector<Point>locs = getLocs(weight);
+		std::vector<Point>locs = getLocs(weight);
 
 		/// return the highest possibility region
 		return getMaxloc(weight, locs, prev_roi, tmplate, target);
 	}
 
 	//get Hamming Distance
-	int getHammingDist(std::string &str1, std::string &str2)
+	int getHammingDist(std::string& str1, std::string& str2)
 	{
 		if ((str1.size() != 64) || (str2.size() != 64))
 			return -1;
@@ -400,70 +439,25 @@ public:
 		return difference;
 	}
 
-	double getHistcomp(const Mat& src, const Mat& tar)
+	/// get image color range by using HSV
+	std::vector<double> getColorange(const cv::Mat& source, const cv::Rect& roi)
 	{
-		/// Using 50 bins for hue and 60 for saturation
-		int bins = 256; 
-		int histSize[] = { bins};
-
-		// hue varies from 0 to 179, saturation from 0 to 255
-		float range[] = { 0, 256 };
-
-		const float* ranges[] = { range};
-
-		// Use the o-th and 1-st channels
-		int ch0[] = { 0 };
-		int ch1[] = { 1 };
-		int ch2[] = { 2 };
-
-		/// Histograms
-		Mat hist_sa, hist_sb, hist_sc;
-		Mat hist_ta, hist_tb, hist_tc;
-		Mat hsv_base = src.clone();
-		Mat hsv_test = tar.clone();
-
-
-		/// Calculate the histograms for the HSV images
-		calcHist(&hsv_base, 1, ch0, Mat(), hist_sa, 1, histSize, ranges, true, false);
-		normalize(hist_sa, hist_sa, 0, 1, NORM_MINMAX, -1, Mat());
-		calcHist(&hsv_base, 1, ch1, Mat(), hist_sb, 1, histSize, ranges, true, false);
-		normalize(hist_sb, hist_sb, 0, 1, NORM_MINMAX, -1, Mat());
-		calcHist(&hsv_base, 1, ch2, Mat(), hist_sc, 1, histSize, ranges, true, false);
-		normalize(hist_sc, hist_sc, 0, 1, NORM_MINMAX, -1, Mat());
-
-		calcHist(&hsv_test, 1, ch0, Mat(), hist_ta, 1, histSize, ranges, true, false);
-		normalize(hist_ta, hist_ta, 0, 1, NORM_MINMAX, -1, Mat());
-		calcHist(&hsv_test, 1, ch1, Mat(), hist_tb, 1, histSize, ranges, true, false);
-		normalize(hist_tb, hist_tb, 0, 1, NORM_MINMAX, -1, Mat());
-		calcHist(&hsv_test, 1, ch2, Mat(), hist_tc, 1, histSize, ranges, true, false);
-		normalize(hist_tc, hist_tc, 0, 1, NORM_MINMAX, -1, Mat());
-
-		double v0 = 1.0 - compareHist(hist_sa, hist_ta, 3);
-		double v1 = 1.0 - compareHist(hist_sb, hist_tb, 3);
-		double v2 = 1.0 - compareHist(hist_sc, hist_tc, 3);
-		double v=max(max(v0, v1), v2);
-		double vv = (v0 + v1 + v2) / 3;
-		return (v > vv) ? v : vv;
-	}
-
-	vector<double> getColorange(const Mat& source, const Rect& roi)
-	{
-		Rect rec;
+		/// narrow the rect. 
+		cv::Rect rec;
 		int r = 13;
 		rec.x = roi.x + r;
 		rec.y = roi.y + r;
-		rec.width = roi.width - (r);
-		rec.height = roi.height - (r);
-		Mat tmp = source(rec);
-		Mat tmpColor, ch[3], tmpmask;
-		//tmpColor = bgr2chromaticity(tmp);
+		rec.width = roi.width - r;
+		rec.height = roi.height - r;
+		cv::Mat tmp = source(rec);
+		cv::Mat tmpColor, ch[3], tmpmask;
 		cvtColor(tmp, tmpColor, CV_BGR2HSV);
 		split(tmpColor, ch);
 		double minh = 0, maxh = 0, mins = 0, maxs = 0, minv = 0, maxv = 0;
 		minMaxLoc(ch[0], &minh, &maxh);
 		minMaxLoc(ch[1], &mins, &maxs);
 		minMaxLoc(ch[2], &minv, &maxv);
-		vector<double> colorange;
+		std::vector<double> colorange;
 		colorange.push_back(minh);
 		colorange.push_back(maxh);
 		colorange.push_back(mins);
@@ -473,9 +467,10 @@ public:
 		return colorange;
 	}
 
-	Mat bgr2chromaticity(const Mat& src)
+	/// convert bgr image 2 normalized bgr 2 enhance the image objs  
+	cv::Mat bgr2normalized(const cv::Mat& src)
 	{
-		Mat tmp(src.size(), src.type());
+		cv::Mat tmp(src.size(), src.type());
 		for (int i = 0; i < src.rows; i++)
 			for (int j = 0; j < src.cols; j++)
 			{
@@ -491,125 +486,153 @@ public:
 		return tmp;
 	}
 
-	bool boundCheck(const Rect& roi, const Mat& image)
+	/// check the prediction is inside the image cols & rows; if the rectangle is near the image boundary, it will disappear
+	bool boundCheck(const cv::Rect& roi, const cv::Mat& image)
 	{
 		int br = 2;
-		int left = br, right = br + image.cols - 2 * br, up = br, down = br + image.rows - 2 * br;
-		return ((roi.x < left || roi.y < up) || (roi.x < left || roi.y + roi.height > down) || (roi.x + roi.width > right || roi.y < left) || (roi.x + roi.width > right || roi.y + roi.height > down)) ? false : true;
+		Rect tmprec(br, br, image.cols - 2 * br, image.rows - 2 * br);
+		Mat tt, kk = Mat::ones(image.size(), CV_8UC1);
+		kk = kk * 255;
+		Mat newbound = extrROI(kk, tmprec);
+		Mat tmp = extrROI(kk, roi);
+		bitwise_not(newbound, newbound);
+		bitwise_and(tmp, newbound, tt);
+		return (countNonZero(tt) > 0) ? false : true;
 	}
 
-	bool compColor(const Mat& prev_tmplate, const Mat& tmplate, const Mat& image, const Rect& m1rec, const Rect& m2rec, Rect& match_roi, const vector<double>& colorange, vector<double>& cth, const Rect& prev_roi, const Mat& tmphist, const int& id, vector<double>& sth)
+	// return contour area
+	int contourCheck(const cv::Mat& src)
 	{
-		Mat tmpColor, prevtmpColor, m1Color, m2Color, m1, m2;
+		cv::Mat gray, edge;
+		vector<vector<Point> > contours;
+		vector<Vec4i> hierarchy;
+		cvtColor(src, gray, CV_BGR2GRAY);
+		edge = convert2edge(gray);
+		/// Find contours
+		findContours(edge, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
+		Mat drawing = Mat::zeros(edge.size(), CV_8UC1);
+		for (int i = 0; i < contours.size(); i++)
+		{
+			Scalar color = Scalar(255, 255, 255);
+			drawContours(drawing, contours, i, color, 1, 8, hierarchy, 0, Point());
+		}
+		bitwise_not(drawing, drawing);
+		return countNonZero(drawing);
+	}
+
+	bool comProb(const cv::Mat& tmplate, const cv::Mat& image, const cv::Rect& m1rec, const cv::Rect& m2rec, cv::Rect& match_roi, std::vector<double>& probth, const cv::Mat& backproj)
+	{
+		/// backproj probability
+		double b1 = cv::mean(backproj(m1rec)).val[0];
+		double b2 = cv::mean(backproj(m2rec)).val[0];
+		
+		/// template
+		cv::Mat tmpColor, m1Color, m2Color;
 		tmpColor = tmplate.clone();
-		prevtmpColor = prev_tmplate.clone();
-		m1 = image(m1rec);
-		m2 = image(m2rec);
-		tmpColor = bgr2chromaticity(tmpColor);
-		m1Color = bgr2chromaticity(m1);
-		m2Color = bgr2chromaticity(m2);
-		if (debug_flag) { imgshow(tmpColor); imgshow(m1Color); imgshow(m2Color); }
+		m1Color = image(m1rec);
+		m2Color = image(m2rec);
+		tmpColor = bgr2normalized(tmpColor);
+		m1Color = bgr2normalized(m1Color);
+		m2Color = bgr2normalized(m2Color);
+		cv::Mat w1, w2;
+		/// Do the Matching and Normalize
+		matchTemplate(m1Color, tmpColor, w1, match_method);
+		matchTemplate(m2Color, tmpColor, w2, match_method);
+		float t1 = w1.at<float>(Point(0, 0));
+		float t2 = w2.at<float>(Point(0, 0));
 
-		double s1 = getSAD(tmpColor, m1Color) * getSAD(tmplate, m1);
-		double s2 = getSAD(tmpColor, m2Color) * getSAD(tmplate, m2);
-		double c1 = 1.0 - (tmpColor.dot(m1Color) / (norm(tmpColor) * norm(m1Color))) * (tmplate.dot(m1) / (norm(tmplate) * norm(m1)));
-		double c2 = 1.0 - (tmpColor.dot(m2Color) / (norm(tmpColor) * norm(m2Color))) * (tmplate.dot(m2) / (norm(tmplate) * norm(m2)));
+		/// 
+		float s1 = b1 * t1;
+		float s2 = b2 * t2;
 
-		double  ss = 0, cc = 0;
-		if ((s1 <= s2 && c1 <= c2) || (s1 > s2 && c1 <= c2))
+		double th = 0;
+		double meanpb = 0;
+		if (s1 >= s2)
 		{
 			match_roi = m1rec;
-			ss = s1;
-			cc = c1;
+			th = s1;
+			meanpb = b1;
 		}
-		else if ((s1 > s2 && c1 > c2) || (s1 <= s2 && c1 > c2))
+		else
 		{
 			match_roi = m2rec;
-			ss = s2;
-			cc = c2;
+			th = s2;
+			meanpb = b2;
 		}
 
-		Scalar cthmean, cthstd, sthmean, sthstd;
-		meanStdDev(sth, sthmean, sthstd);
-		double stmean = (double)sthmean.val[0];
-		double ststd = (double)sthstd.val[0];
-		meanStdDev(cth, cthmean, cthstd);
-		double ctmean = (double)cthmean.val[0];
-		double ctstd = (double)cthstd.val[0];
+		/// thflag: 
+		double avgth = cv::mean(probth).val[0];
+		double minth, maxth;
+		minMaxLoc(probth, &minth, &maxth);
+		bool thflag = true;
+		if (th >= (meanpb / 2.0))
+		{
+			if (probth.at(0) == 0)
+				probth.at(0) = th;
+			else
+			{
+				if (th <= 2 * minth)
+					probth.push_back(th);
+			}
+		}
+		else
+			thflag = false;
 		
+		/// pflag: position flag; 
 		bool pflag = boundCheck(match_roi, image);
-		bool cflag = true, sflag = true;
-		double clb = (ctmean - ctstd) / 1.5;
-		double cub = 2 * (ctmean + ctstd);
-		double slb = (stmean - ststd) / 1.5;
-		double sub = 2 * (stmean + ststd);
 
-		if(cth.size()>3)
-			cflag = (cc <= cub && cc >= clb) ? true : false;
-		if (cflag)
-		{
-			if (cth.at(0) == 0)
-				cth.at(0) = cc;
-			else
-				cth.push_back(cc);
-		}
-		if (sth.size() > 3)
-			sflag = (ss <= sub && ss >= slb) ? true : false;
-		if (sflag)
-		{
-			if (sth.at(0) == 0)
-				sth.at(0) = ss;
-			else
-				sth.push_back(ss);
-		}
-		bool trflag = (pflag && cflag && sflag) ? true : false;
- 		return trflag;
-
+		/// cflag: contour flag
+		int tmparea = contourCheck(tmplate);
+		int matcharea = contourCheck(image(match_roi));
+		bool cflag = (matcharea >= (tmparea >> 1)) ? true : false;
+		
+		/// tracking flag (Draw or not)
+		return (pflag && cflag && thflag) ? true : false;
 
 	}
 
 	/// Run the algorithm
-	bool runObjectTrackingAlgorithm (const cv::Mat& target, std::map<int, cv::Rect>& objects)
+	bool runObjectTrackingAlgorithm(const cv::Mat& target, std::map<int, cv::Rect>& objects)
 	{
 		objects.clear();
-	
+
 		frame_id++;
 
-		///
+		/// tracking image pHash value
 		std::string tarpHash = getpHash(target);
 		imflag = ((1.0 - getHammingDist(srcpHash, tarpHash) / 64.0) > 0.5) ? true : false;
-		
+
 
 		/// image initialization; target: original image size; image: resized image
-		Mat image = target.clone();
+		cv::Mat image = target.clone();
 
 		/// return the image re-sampling ratio
 		scale_ratio = resampleRatio(target);
-		
+
 		/// check re-sampling is essential
 		if (resampling)
 			/// down-sampling (1) 
 			imResample(image, scale_ratio, 1);
 
 		/// The target image and its edge image
-		Mat gray_track_im;
+		cv::Mat gray_track_im;
 		cvtColor(image, gray_track_im, CV_BGR2GRAY);
-		Mat edges = convert2edge(gray_track_im);
-		
+		cv::Mat edges = convert2edge(gray_track_im);
+
 		auto itr = m_active_objects.begin();
-		for ( ; itr != m_active_objects.end(); ++itr )
+		for (; itr != m_active_objects.end(); ++itr)
 		{
-			cout<<"frame "<< frame_id<<" obj "<<itr->first<<endl;
+			cout << "frame " << frame_id << " obj " << itr->first << endl;
 
 			/// original template & its roi
-			Mat tmplate = itr->second;
+			cv::Mat tmplate = itr->second;
 			/// Previous frame ROI position & down-sampling
 			cv::Rect prev_roi = m_active_prev_roi.at(itr->first);
-			Mat prev_tmplate = m_active_prev_tmplate.at(itr->first);
-			Mat tmphist= m_active_tmplate_hist.at(itr->first);
-			vector<double> colorange = m_active_tmplate_colorange.at(itr->first);
-			vector<double> cth = m_active_tmplate_cth.at(itr->first);
-			vector<double> sth = m_active_tmplate_sth.at(itr->first);
+			cv::Mat prev_tmplate = m_active_prev_tmplate.at(itr->first);
+			/// Color 
+			cv::Mat tmphist = m_active_tmplate_hist.at(itr->first);
+			std::vector<double> colorange = m_active_tmplate_colorange.at(itr->first);
+			std::vector<double> probth = m_active_tmplate_probth.at(itr->first);
 
 			/// down-sampling
 			if (resampling)
@@ -620,45 +643,54 @@ public:
 			}
 
 			/// Create gray-template and its edge image
-			Mat gray_tmplate, edged, prev_edged;
+			cv::Mat gray_tmplate, edged, prev_edged;
 			cvtColor(tmplate, gray_tmplate, CV_BGR2GRAY);
 			edged = convert2edge(gray_tmplate);
-			
+
 			cvtColor(prev_tmplate, gray_tmplate, CV_BGR2GRAY);
 			prev_edged = convert2edge(gray_tmplate);
 
-			//debug_flag = (frame_id == 314 && itr->first == 0 || frame_id == 345 && itr->first == 0) ? true : false;
-		
+			debug_flag = (frame_id == 237 && itr->first == 0 || frame_id == 302 && itr->first == 0 || frame_id == 333 && itr->first == 0 || frame_id == 345 && itr->first == 0) ? true : false;
+
 			/// camshift
-			Rect selection = camshiftArea(image, tmphist, prev_roi, colorange);
-			if(debug_flag) imgshow(image, selection);
-			Mat im = extrROI(image, selection);
-			Mat ed = extrROI(edges, selection);
+			cv::Mat backproj;
+			cv::Rect selection = camshiftArea(image, tmphist, prev_roi, colorange, backproj);
+			if (debug_flag) imgshow(image, selection);
+			cv::Mat im = extrROI(image, selection);
+			cv::Mat ed = extrROI(edges, selection);
 
 			/// Template matching 2 find the most similar region; m1/m2: the original target andits edge image
-			Rect m1rec = TMatch(im, tmplate, prev_roi);
-			Rect m2rec = TMatch(ed, edged, prev_roi);
-			
-			Rect match_roi;
-			bool trflag = compColor(prev_tmplate, tmplate, image, m1rec, m2rec, match_roi, colorange, cth, prev_roi, tmphist, itr->first, sth);
+			cv::Rect m1rec = TMatch(im, tmplate, prev_roi);
+			cv::Rect m2rec = TMatch(ed, edged, prev_roi);
+
+			//bool compColor(const cv::Mat& tmplate, const cv::Mat& image, const cv::Rect& m1rec, const cv::Rect& m2rec, Rect& match_roi, std::vector<double>& cth, std::vector<double>& sth)
+			cv::Rect match_roi;
+			//bool trflag = compColor(tmplate, image, m1rec, m2rec, match_roi, cth, sth, backproj);
+			bool trflag = comProb(tmplate, image, m1rec, m2rec, match_roi, probth, backproj);
 			if (resampling)
 			{
 				rectResample(match_roi, scale_ratio, 0);
 				rectResample(prev_roi, scale_ratio, 0);
 			}
-			if (trflag) 
-			{			
+			if (trflag || trflag == false && m_active_tmplate_miss.at(itr->first) < 3)
+			{
 				/// draw + save tracking region
 				objects.insert(std::make_pair(itr->first, match_roi));
-			
+
 				/// Update Parameter: update the roi 
 				m_active_prev_roi.at(itr->first) = match_roi;
-			
-				///
+
+				///  Update Parameter: update the template 
 				m_active_prev_tmplate.at(itr->first) = target(match_roi);
 
-				/// 
+				/// Update Parameter: update the color range
 				m_active_tmplate_colorange.at(itr->first) = getColorange(target, match_roi);
+
+				/// 
+				if(trflag)
+					m_active_tmplate_miss.at(itr->first) = 0;
+				else
+					m_active_tmplate_miss.at(itr->first) += 1;
 
 			}
 			else
@@ -667,51 +699,53 @@ public:
 
 				/// Update Parameter: restore the previous tmplate back 2 the original tmplate 
 				m_active_prev_tmplate.at(itr->first) = m_active_objects.at(itr->first);
+
+				/// Update Parameter: restore the previous tmplate back 2 the original tmplate 
+				m_active_tmplate_miss.at(itr->first) += 1;
 			}
-			// 
-			m_active_tmplate_cth.at(itr->first) = cth;
-				
-			/// 
-			m_active_tmplate_sth.at(itr->first) = sth;
- 
+
+			/// the probability between a pair image  
+			m_active_tmplate_probth.at(itr->first) = probth;
+
+			/// the image similarity(SAD) between a pair image  
+			//m_active_tmplate_sth.at(itr->first) = sth;
+
 		}
-		///
-		if(imflag) 
+		/// Update the pHash value
+		if (imflag)
 			srcpHash = tarpHash;
 
 		return (objects.size() > 0);
 	}
 
-	Mat extrROI(const Mat& img, const Rect& roi)
+	cv::Mat extrROI(const cv::Mat& img, const cv::Rect& roi)
 	{
-		Mat mask = cv::Mat::zeros(img.rows, img.cols, CV_8U);
+		cv::Mat mask = cv::Mat::zeros(img.rows, img.cols, CV_8U);
 		mask(roi) = 255;
-		Mat new_img;
+		cv::Mat new_img;
 		img.copyTo(new_img, mask);
 		return new_img;
 	}
 
-	Mat extrROI(const Mat& img, const Rect& r1, const Rect& r2)
+	cv::Mat extrROI(const cv::Mat& img, const cv::Rect& r1, const cv::Rect& r2)
 	{
-		Mat mask = cv::Mat::zeros(img.rows, img.cols, CV_8U);
+		cv::Mat mask = cv::Mat::zeros(img.rows, img.cols, CV_8U);
 		mask(r1) = 255;
 		mask(r2) = 255;
-		Mat new_img;
+		cv::Mat new_img;
 		img.copyTo(new_img, mask);
 		return new_img;
 	}
 
-	Mat extrROI(const Mat& img, const Mat& mask)
+	cv::Mat extrROI(const cv::Mat& img, const cv::Mat& mask)
 	{
-		Mat new_img;
+		cv::Mat new_img;
 		img.copyTo(new_img, mask);
 		return new_img;
 	}
-
-
 
 	/// Debug: imshow 
-	void imgshow(const Mat& img)
+	void imgshow(const cv::Mat& img)
 	{
 		namedWindow("Display window", WINDOW_NORMAL);
 		imshow("Display window", img);
@@ -719,26 +753,26 @@ public:
 		cvDestroyAllWindows();
 	}
 
-	void imgshow(const Mat& img, const Rect& roi)
+	void imgshow(const cv::Mat& img, const cv::Rect& roi)
 	{
-		Mat new_img = extrROI(img, roi);
+		cv::Mat new_img = extrROI(img, roi);
 		namedWindow("Display window", WINDOW_NORMAL);
 		imshow("Display window", new_img);
 		waitKey(0);
 		cvDestroyAllWindows();
 	}
-	void imgshow(const Mat& img, const Mat& mask)
+	void imgshow(const cv::Mat& img, const cv::Mat& mask)
 	{
-		Mat tmp;
+		cv::Mat tmp;
 		img.copyTo(tmp, mask);
 		namedWindow("Display window", WINDOW_NORMAL);
 		imshow("Display window", tmp);
 		waitKey(0);
 		cvDestroyAllWindows();
 	}
-	void imgshow(const Mat& img, const Mat& mask, const Rect& roi)
+	void imgshow(const cv::Mat& img, const cv::Mat& mask, const cv::Rect& roi)
 	{
-		Mat tmp;
+		cv::Mat tmp;
 		img.copyTo(tmp, mask);
 		namedWindow("Display window", WINDOW_NORMAL);
 		imshow("Display window", tmp(roi));
@@ -749,7 +783,7 @@ public:
 private:
 
 	/// image size definition
-	Point imsize;
+	Point imsizew, imsizeh;
 
 	/// image re-sampling ratio
 	Point scale_ratio;
@@ -760,6 +794,7 @@ private:
 	/// template matching method: 0/1: SQDIFF/Normalized-SQDIFF; 2/3: TM_CCORR/Normalized-TM_CCORR; 4/5: CCOEFF/Normalized-CCOEFF; 
 	int match_method;
 
+	/// a source's pHash value 
 	std::string srcpHash;
 
 	/// the template roi in the start frame 
@@ -768,30 +803,20 @@ private:
 	/// the template roi in the previous frame 
 	std::map<int, cv::Rect> m_active_prev_roi;
 
-	/// the template moving vector 
-	std::map<int, cv::Point> m_active_pts_vector;
-
-	/// the frequency of missing template 
-	std::map<int, int> m_active_missing;
-
 	/// the previous tmplate  
 	std::map<int, Mat> m_active_prev_tmplate;
 
-	/// the previous tmplate  
+	/// the tmplate color histogram image  
 	std::map<int, Mat> m_active_tmplate_hist;
 
-	/// the previous tmplate  
-	std::map<int, Mat> m_active_tmplate_prev_hist;
+	/// the tmplate color range and it will update in every frame  
+	std::map<int, std::vector<double>> m_active_tmplate_colorange;
 
-	/// the previous tmplate  
-	std::map<int, vector<double>> m_active_tmplate_colorange;
+	/// the threshold between a pair image 
+	std::map<int, std::vector<double>> m_active_tmplate_probth;
 
-	/// the frequency of missing template 
-	std::map<int, vector<double>> m_active_tmplate_sth;
-
-	/// the frequency of missing template 
-	std::map<int, vector<double>> m_active_tmplate_cth;
-
+	/// the threshold between a pair image 
+	std::map<int, int> m_active_tmplate_miss;
 
 	///
 	bool imflag;
