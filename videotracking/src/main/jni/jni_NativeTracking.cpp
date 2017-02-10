@@ -22,8 +22,39 @@
 #define VIDEO_TRACKING_LIB_VERSION 0.2
 #define MIN_RECT_VALUE 8
 
+#ifndef JPG
+#define JPG (std::string(".jpg"))
+#endif
+
 using namespace std;
 using namespace cv;
+
+template <typename T>
+std::string ToString(const T& value)
+{
+    std::ostringstream stream;
+    stream << value;
+    return stream.str();
+}
+
+//// //// ************ //// ////
+//// ////   DBG_INFO   //// ////
+//// //// ************ //// ////
+#ifdef ANDROID
+// For debug Image
+static int debugid = 1;
+bool writeDBGInfo(Rect rect) {
+	const std::string &filename = "/sdcard/TrackingDebug/TrackingRect.txt";
+	FILE *fp = fopen(filename.c_str(), "a");
+	if (fp)
+	{
+		fprintf(fp, "DBG ID: %d , Rect: %d %d %d %d\r\n", debugid, rect.x, rect.y, rect.width, rect.height);
+		fclose(fp);
+		return true;
+	}
+	return false;
+}
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -67,6 +98,9 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_initT
       if(!image)
         return NULL;
 
+      // For debug Image
+      cv::imwrite(std::string("/sdcard/TrackingDebug/DBG_")+ToString(debugid)+JPG, image);
+
       /* Rect data (jint Array) */
       int jrectsLength = env->GetArrayLength(jrects);
       jint* jrectsArrayData = env->GetIntArrayElements(jrects, 0);
@@ -96,6 +130,12 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_initT
       env->ReleaseIntArrayElements(jids, jidsArrayData, 0);
       env->DeleteLocalRef(jids);
 
+      // For debug Image
+      writeDBGInfo(rec);
+      cv::rectangle(image, rec, Scalar(255, 0, 0));
+      cv::imwrite(std::string("/sdcard/TrackingDebug/INIT_")+ToString(debugid)+JPG, image);
+      debugid++;
+
       return jIdsRects;
    //return 0;
   }
@@ -116,6 +156,9 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_addTr
       if(!image)
         return NULL;
 
+      // For debug Image
+      cv::imwrite(std::string("/sdcard/TrackingDebug/DBG_")+ToString(debugid)+JPG, image);
+
        /* Rect data (jint Array) */
       int jrectsLength = env->GetArrayLength(jrects);
       jint* jrectsArrayData = env->GetIntArrayElements(jrects, 0);
@@ -131,6 +174,10 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_addTr
               LOGD("AddTrackingTarget");
           jidsArrayData[j] = AddTrackingTarget((T_HANDLE)jhandle, image, target);
           trackingObjects.push_back(jidsArrayData[j]);
+
+          // For debug Image
+          writeDBGInfo(target);
+          cv::rectangle(image, target, Scalar(255, 0, 0));
       }
 
       /* return the init rect array*/
@@ -152,6 +199,10 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_addTr
       env->ReleaseIntArrayElements(jrects, jrectsArrayData, 0);
       env->ReleaseIntArrayElements(jids, jidsArrayData, 0);
       env->DeleteLocalRef(jids);
+
+      // For debug Image
+      cv::imwrite(std::string("/sdcard/TrackingDebug/ADD_")+ToString(debugid)+JPG, image);
+      debugid++;
 
       return jIdsRects;
   }
@@ -211,6 +262,9 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_proce
       if(!image)
           return NULL;
 
+      // For debug Image
+      cv::imwrite(std::string("/sdcard/TrackingDebug/DBG_")+ToString(debugid)+JPG, image);
+
       /* Map result */
       map<int, Rect> results;
       results.clear();
@@ -235,6 +289,10 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_proce
           buf_result[data_count + 3] = rect_element.width;
           buf_result[data_count + 4] = rect_element.height;
           data_count = data_count + 5;
+
+          // For debug Image
+          writeDBGInfo(rect_element);
+          cv::rectangle(image, rect_element, Scalar(255, 0, 0));
       }
 
       /* result data (jint Array) */
@@ -242,6 +300,10 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_proce
       env->SetIntArrayRegion(jIdsRects, 0 , results.size() * 5, buf_result);
 
       env->ReleaseByteArrayElements(jimage, frame, 0);
+
+      // For debug Image
+      cv::imwrite(std::string("/sdcard/TrackingDebug/RUN_")+ToString(debugid)+JPG, image);
+      debugid++;
 
       return jIdsRects;
   }
