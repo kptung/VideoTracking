@@ -207,7 +207,7 @@ public:
 			}
 		}
 
-		/* hash value¡C*/
+		/* hash valueã€‚*/
 		for (int i = 0; i < 64; ++i)
 		{
 			if (dIdex[i] >= mean)
@@ -650,7 +650,7 @@ public:
 			cvtColor(prev_tmplate, gray_tmplate, CV_BGR2GRAY);
 			prev_edged = convert2edge(gray_tmplate);
 
-			debug_flag = (frame_id == 237 && itr->first == 0 || frame_id == 302 && itr->first == 0 || frame_id == 333 && itr->first == 0 || frame_id == 345 && itr->first == 0) ? true : false;
+			//debug_flag = (frame_id == 237 && itr->first == 0 || frame_id == 302 && itr->first == 0 || frame_id == 333 && itr->first == 0 || frame_id == 345 && itr->first == 0) ? true : false;
 
 			/// camshift
 			cv::Mat backproj;
