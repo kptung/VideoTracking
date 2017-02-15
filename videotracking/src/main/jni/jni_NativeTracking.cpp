@@ -114,7 +114,7 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_initT
       /* Rect data (Rect) */
       Rect rec = Rect((int)jrectsArrayData[0], (int)jrectsArrayData[1], (int)jrectsArrayData[2], (int)jrectsArrayData[3]);
       if(jrectsArrayData[2] < MIN_RECT_VALUE || jrectsArrayData[3] < MIN_RECT_VALUE) {
-          LOGD("Rect Object is too small");
+          LOGD("Rect Object is too small, width %d height %d", jrectsArrayData[2], jrectsArrayData[3]);
           return NULL;
       }
       if(JNI_DBG)
@@ -179,7 +179,7 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_addTr
           // Rect data (Rect)
           const Rect& target = Rect((int)jrectsArrayData[i], (int)jrectsArrayData[i+1], (int)jrectsArrayData[i+2], (int)jrectsArrayData[i+3]);
           if(jrectsArrayData[i+2] < MIN_RECT_VALUE || jrectsArrayData[i+3] < MIN_RECT_VALUE) {
-              LOGD("Rect Object is too small");
+              LOGD("Rect Object is too small, width %d height %d", (int)jrectsArrayData[i+2], (int)jrectsArrayData[i+3]);
               return NULL;
           }
           if(JNI_DBG)

@@ -45,8 +45,11 @@ public class NativeTracking {
 			int[] rect) {
 
 		if (firstRun) {
-			firstRun = false;
-			return initTrackingObjects(image, width, height, rect);
+			int[] result = initTrackingObjects(image, width, height, rect);
+			if(result != null) {
+				firstRun = false;
+			}
+			return result;
 		}
 
 		return addTrackingObjects(handle, image, rect);
