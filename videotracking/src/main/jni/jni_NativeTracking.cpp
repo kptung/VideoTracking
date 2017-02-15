@@ -114,11 +114,11 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_initT
       /* Rect data (Rect) */
       Rect rec = Rect((int)jrectsArrayData[0], (int)jrectsArrayData[1], (int)jrectsArrayData[2], (int)jrectsArrayData[3]);
       if(jrectsArrayData[2] < MIN_RECT_VALUE || jrectsArrayData[3] < MIN_RECT_VALUE) {
-          LOGD("Rect Object is too small, width %d height %d", jrectsArrayData[2], jrectsArrayData[3]);
+          LOGD("Rect Object is too small, width %d height %d", rec.width, rec.height);
           return NULL;
       }
       if(JNI_DBG)
-          LOGD("initTrackingObjects");
+          LOGD("initTrackingObjects, Rect width %d height %d", rec.width, rec.height);
       jidsArrayData[0] = SetTrackingTarget((T_HANDLE)jhandle, image, rec);
       trackingObjects.insert(make_pair(jidsArrayData[0], myuv(rec).clone()));
       /* return the init rect array*/
@@ -179,11 +179,11 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_addTr
           // Rect data (Rect)
           const Rect& target = Rect((int)jrectsArrayData[i], (int)jrectsArrayData[i+1], (int)jrectsArrayData[i+2], (int)jrectsArrayData[i+3]);
           if(jrectsArrayData[i+2] < MIN_RECT_VALUE || jrectsArrayData[i+3] < MIN_RECT_VALUE) {
-              LOGD("Rect Object is too small, width %d height %d", (int)jrectsArrayData[i+2], (int)jrectsArrayData[i+3]);
+              LOGD("Rect Object is too small, width %d height %d", target.width, target.height);
               return NULL;
           }
           if(JNI_DBG)
-              LOGD("AddTrackingTarget");
+              LOGD("AddTrackingTarget, Rect width %d height %d", target.width, target.height);
           jidsArrayData[j] = AddTrackingTarget((T_HANDLE)jhandle, image, target);
           trackingObjects.insert(make_pair(jidsArrayData[j], myuv(target).clone()));
 
