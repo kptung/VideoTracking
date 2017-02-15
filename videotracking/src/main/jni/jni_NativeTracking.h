@@ -55,6 +55,14 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_proce
 JNIEXPORT jboolean JNICALL Java_org_iii_snsi_videotracking_NativeTracking_releaseHandle
   (JNIEnv *, jobject, jlong);
 
+/*
+ * Class:     org_iii_snsi_videotracking_NativeTracking
+ * Method:    getTrackingObjImg
+ * Signature: (I)[B
+ */
+JNIEXPORT jbyteArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_getTrackingObjImg
+  (JNIEnv *env, jobject jNativeTracking, jint jobjectID);
+
 #ifdef __cplusplus
 }
 #endif

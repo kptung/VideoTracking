@@ -61,7 +61,7 @@ extern "C" {
 #endif
 
 static int imgHeight, imgWidth = 0;
-static vector<int> trackingObjects = vector<int>();
+static map<int, Mat> trackingObjects = map<int, Mat>();
 
 bool operator ! (const Mat&m) { return m.empty(); }
 
@@ -95,8 +95,10 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_initT
       Mat myuv(imgHeight + imgHeight/2, imgWidth, CV_8UC1, (uchar *)frame);
       cv::cvtColor(myuv, image, CV_YUV420sp2BGR);
 
-      if(!image)
+      if(!image) {
+        LOGD("image convert fail");
         return NULL;
+      }
 
       // For debug Image
       cv::imwrite(std::string("/sdcard/TrackingDebug/DBG_")+ToString(debugid)+JPG, image);
@@ -111,10 +113,14 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_initT
 
       /* Rect data (Rect) */
       Rect rec = Rect((int)jrectsArrayData[0], (int)jrectsArrayData[1], (int)jrectsArrayData[2], (int)jrectsArrayData[3]);
+      if(jrectsArrayData[2] < MIN_RECT_VALUE || jrectsArrayData[3] < MIN_RECT_VALUE) {
+          LOGD("Rect Object is too small");
+          return NULL;
+      }
       if(JNI_DBG)
           LOGD("initTrackingObjects");
       jidsArrayData[0] = SetTrackingTarget((T_HANDLE)jhandle, image, rec);
-      trackingObjects.push_back(jidsArrayData[0]);
+      trackingObjects.insert(make_pair(jidsArrayData[0], myuv(rec).clone()));
       /* return the init rect array*/
       int* buf_result = new int[ 5 * (jrectsLength / 4) ];
       buf_result[0]=jidsArrayData[0];
@@ -153,8 +159,10 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_addTr
       Mat myuv(imgHeight + imgHeight/2, imgWidth, CV_8UC1, (uchar *)frame);
       cv::cvtColor(myuv, image, CV_YUV420sp2BGR);
 
-      if(!image)
+      if(!image) {
+        LOGD("image convert fail");
         return NULL;
+      }
 
       // For debug Image
       cv::imwrite(std::string("/sdcard/TrackingDebug/DBG_")+ToString(debugid)+JPG, image);
@@ -170,10 +178,14 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_addTr
       for (int i = 0, j = 0; i < jrectsLength; i += 4, j++) {
           // Rect data (Rect)
           const Rect& target = Rect((int)jrectsArrayData[i], (int)jrectsArrayData[i+1], (int)jrectsArrayData[i+2], (int)jrectsArrayData[i+3]);
+          if(jrectsArrayData[i+2] < MIN_RECT_VALUE || jrectsArrayData[i+3] < MIN_RECT_VALUE) {
+              LOGD("Rect Object is too small");
+              return NULL;
+          }
           if(JNI_DBG)
               LOGD("AddTrackingTarget");
           jidsArrayData[j] = AddTrackingTarget((T_HANDLE)jhandle, image, target);
-          trackingObjects.push_back(jidsArrayData[j]);
+          trackingObjects.insert(make_pair(jidsArrayData[j], myuv(target).clone()));
 
           // For debug Image
           writeDBGInfo(target);
@@ -228,8 +240,9 @@ JNIEXPORT jboolean JNICALL Java_org_iii_snsi_videotracking_NativeTracking_remove
 
           // Object ID = -1, remove all tracking object
           if(object_id == -1) {
-            for (int itr = 0 ; itr < trackingObjects.size(); ++itr )
-                result =  RemoveTrackingTarget((T_HANDLE)jhandle, trackingObjects[itr]);
+            map<int, Mat>::iterator itr = trackingObjects.begin();
+            for ( ; itr != trackingObjects.end(); itr++ )
+                result =  RemoveTrackingTarget((T_HANDLE)jhandle, itr->first);
             trackingObjects.clear();
             break;
           }
@@ -319,6 +332,36 @@ JNIEXPORT jboolean JNICALL Java_org_iii_snsi_videotracking_NativeTracking_releas
       if(JNI_DBG)
           LOGD("DeleteVideoTracker");
       return ( DeleteVideoTracker((T_HANDLE)jhandle) == true ? JNI_TRUE : JNI_FALSE);
+  }
+
+/*
+ * Class:     org_iii_snsi_videotracking_NativeTracking
+ * Method:    getTrackingObjImg
+ * Signature: (I)[B
+ */
+JNIEXPORT jbyteArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_getTrackingObjImg
+  (JNIEnv *env, jobject jNativeTracking, jint jobjectID) {
+
+      Mat image;
+      map<int, Mat>::iterator itr = trackingObjects.find((int)jobjectID);
+      if(itr != trackingObjects.end())
+      {
+          cvtColor(itr->second, image, CV_BGR2BGRA, 4);
+          //image = itr->second.clone();
+      } else {
+          return NULL;
+      }
+
+      int size = image.total() * image.elemSize();
+      jbyte* buf_result = new jbyte[size];  // you will have to delete[] that later
+      memcpy(buf_result, image.data, size*sizeof(jbyte));
+
+      jbyteArray imgData = env->NewByteArray(size);
+      env->SetByteArrayRegion(imgData, 0, size, buf_result);
+
+      if(JNI_DBG)
+          LOGD("getTrackingObjImg");
+      return imgData;
   }
 
 #ifdef __cplusplus

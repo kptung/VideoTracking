@@ -102,4 +102,6 @@ public class NativeTracking {
 
 	private native synchronized boolean releaseHandle(long handle);
 
+	public native synchronized byte[] getTrackingObjImg(int objectID);
+
 }
