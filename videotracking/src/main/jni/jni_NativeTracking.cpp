@@ -20,7 +20,7 @@
 
 #define JNI_DBG 1
 #define VIDEO_TRACKING_LIB_VERSION 0.2
-#define MIN_RECT_VALUE 8
+#define MIN_RECT_VALUE 13
 
 #ifndef JPG
 #define JPG (std::string(".jpg"))
