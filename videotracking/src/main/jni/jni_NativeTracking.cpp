@@ -18,7 +18,7 @@
 #define LOG_TAG "JNI_NativeTracking"
 #define LOGD(...) ((void)__android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__))
 
-#define JNI_DBG 1
+#define JNI_DBG 0
 #define VIDEO_TRACKING_LIB_VERSION 0.2
 #define MIN_RECT_VALUE 13
 
@@ -96,12 +96,16 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_initT
       cv::cvtColor(myuv, image, CV_YUV420sp2BGR);
 
       if(!image) {
-        LOGD("image convert fail");
+        if(JNI_DBG) {
+            LOGD("image convert fail");
+        }
         return NULL;
       }
 
       // For debug Image
-      cv::imwrite(std::string("/sdcard/TrackingDebug/DBG_")+ToString(debugid)+JPG, image);
+      if(JNI_DBG) {
+        cv::imwrite(std::string("/sdcard/TrackingDebug/DBG_")+ToString(debugid)+JPG, image);
+      }
 
       /* Rect data (jint Array) */
       int jrectsLength = env->GetArrayLength(jrects);
@@ -114,7 +118,9 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_initT
       /* Rect data (Rect) */
       Rect rec = Rect((int)jrectsArrayData[0], (int)jrectsArrayData[1], (int)jrectsArrayData[2], (int)jrectsArrayData[3]);
       if(jrectsArrayData[2] < MIN_RECT_VALUE || jrectsArrayData[3] < MIN_RECT_VALUE) {
-          LOGD("Rect Object is too small, width %d height %d", rec.width, rec.height);
+          if(JNI_DBG) {
+            LOGD("Rect Object is too small, width %d height %d", rec.width, rec.height);
+          }
           return NULL;
       }
       if(JNI_DBG)
@@ -137,10 +143,12 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_initT
       env->DeleteLocalRef(jids);
 
       // For debug Image
-      writeDBGInfo(rec);
-      cv::rectangle(image, rec, Scalar(255, 0, 0));
-      cv::imwrite(std::string("/sdcard/TrackingDebug/INIT_")+ToString(debugid)+JPG, image);
-      debugid++;
+      if(JNI_DBG) {
+        writeDBGInfo(rec);
+        cv::rectangle(image, rec, Scalar(255, 0, 0));
+        cv::imwrite(std::string("/sdcard/TrackingDebug/INIT_")+ToString(debugid)+JPG, image);
+        debugid++;
+      }
 
       return jIdsRects;
    //return 0;
@@ -160,12 +168,16 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_addTr
       cv::cvtColor(myuv, image, CV_YUV420sp2BGR);
 
       if(!image) {
-        LOGD("image convert fail");
+        if(JNI_DBG) {
+            LOGD("image convert fail");
+        }
         return NULL;
       }
 
       // For debug Image
-      cv::imwrite(std::string("/sdcard/TrackingDebug/DBG_")+ToString(debugid)+JPG, image);
+      if(JNI_DBG) {
+          cv::imwrite(std::string("/sdcard/TrackingDebug/DBG_")+ToString(debugid)+JPG, image);
+      }
 
        /* Rect data (jint Array) */
       int jrectsLength = env->GetArrayLength(jrects);
@@ -179,7 +191,9 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_addTr
           // Rect data (Rect)
           const Rect& target = Rect((int)jrectsArrayData[i], (int)jrectsArrayData[i+1], (int)jrectsArrayData[i+2], (int)jrectsArrayData[i+3]);
           if(jrectsArrayData[i+2] < MIN_RECT_VALUE || jrectsArrayData[i+3] < MIN_RECT_VALUE) {
-              LOGD("Rect Object is too small, width %d height %d", target.width, target.height);
+              if(JNI_DBG) {
+                  LOGD("Rect Object is too small, width %d height %d", target.width, target.height);
+              }
               return NULL;
           }
           if(JNI_DBG)
@@ -188,8 +202,10 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_addTr
           trackingObjects.insert(make_pair(jidsArrayData[j], myuv(target).clone()));
 
           // For debug Image
-          writeDBGInfo(target);
-          cv::rectangle(image, target, Scalar(255, 0, 0));
+          if(JNI_DBG) {
+            writeDBGInfo(target);
+            cv::rectangle(image, target, Scalar(255, 0, 0));
+          }
       }
 
       /* return the init rect array*/
@@ -213,8 +229,10 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_addTr
       env->DeleteLocalRef(jids);
 
       // For debug Image
-      cv::imwrite(std::string("/sdcard/TrackingDebug/ADD_")+ToString(debugid)+JPG, image);
-      debugid++;
+      if(JNI_DBG) {
+          cv::imwrite(std::string("/sdcard/TrackingDebug/ADD_")+ToString(debugid)+JPG, image);
+          debugid++;
+      }
 
       return jIdsRects;
   }
@@ -272,11 +290,17 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_proce
       Mat myuv(imgHeight + imgHeight/2, imgWidth, CV_8UC1, (uchar *)frame);
       cv::cvtColor(myuv, image, CV_YUV420sp2BGR);
 
-      if(!image)
-          return NULL;
+      if(!image) {
+        if(JNI_DBG) {
+            LOGD("image convert fail");
+        }
+        return NULL;
+      }
 
       // For debug Image
-      cv::imwrite(std::string("/sdcard/TrackingDebug/DBG_")+ToString(debugid)+JPG, image);
+      if(JNI_DBG) {
+          cv::imwrite(std::string("/sdcard/TrackingDebug/DBG_")+ToString(debugid)+JPG, image);
+      }
 
       /* Map result */
       map<int, Rect> results;
@@ -304,8 +328,10 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_proce
           data_count = data_count + 5;
 
           // For debug Image
-          writeDBGInfo(rect_element);
-          cv::rectangle(image, rect_element, Scalar(255, 0, 0));
+          if(JNI_DBG) {
+            writeDBGInfo(rect_element);
+            cv::rectangle(image, rect_element, Scalar(255, 0, 0));
+          }
       }
 
       /* result data (jint Array) */
@@ -315,8 +341,10 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_proce
       env->ReleaseByteArrayElements(jimage, frame, 0);
 
       // For debug Image
-      cv::imwrite(std::string("/sdcard/TrackingDebug/RUN_")+ToString(debugid)+JPG, image);
-      debugid++;
+      if(JNI_DBG) {
+          cv::imwrite(std::string("/sdcard/TrackingDebug/RUN_")+ToString(debugid)+JPG, image);
+          debugid++;
+      }
 
       return jIdsRects;
   }
