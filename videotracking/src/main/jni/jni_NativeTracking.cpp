@@ -392,6 +392,37 @@ JNIEXPORT jbyteArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_getT
       return imgData;
   }
 
+/*
+ * Class:     org_iii_snsi_videotracking_NativeTracking
+ * Method:    convertYUV2RGBA
+ * Signature: (II[B)[I
+ */
+JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_convertYUV2RGBA
+  (JNIEnv *env, jobject jNativeTracking, jint jwidth, jint jheight, jbyteArray jyuv) {
+
+      //, jintArray bgra
+      jbyte* _yuv  = env->GetByteArrayElements(jyuv, 0);
+      int* _bgra = new int[jwidth * jheight];
+      //jint* _bgra = env->GetIntArrayElements(bgra, 0);
+
+      cv::Mat myuv(jheight + jheight/2, jwidth, CV_8UC1, (unsigned char *)_yuv);
+      cv::Mat mbgra(jheight, jwidth, CV_8UC4, (unsigned char *)_bgra);
+
+      //Please make attention about BGRA byte order
+      //ARGB stored in java as int array becomes BGRA at native level
+      cv::cvtColor(myuv, mbgra, CV_YUV420sp2BGR, 4);
+
+      env->ReleaseByteArrayElements(jyuv, _yuv, 0);
+      //env->ReleaseIntArrayElements(bgra, _bgra, 0);
+
+      /* return the additional rect */
+      jintArray bgra = env->NewIntArray(jwidth * jheight);
+      env->SetIntArrayRegion(bgra, 0 , jwidth * jheight, _bgra);
+
+      return bgra;
+
+  }
+
 #ifdef __cplusplus
 }
 #endif

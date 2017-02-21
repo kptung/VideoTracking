@@ -61,7 +61,15 @@ JNIEXPORT jboolean JNICALL Java_org_iii_snsi_videotracking_NativeTracking_releas
  * Signature: (I)[B
  */
 JNIEXPORT jbyteArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_getTrackingObjImg
-  (JNIEnv *env, jobject jNativeTracking, jint jobjectID);
+  (JNIEnv *, jobject, jint);
+
+/*
+ * Class:     org_iii_snsi_videotracking_NativeTracking
+ * Method:    convertYUV2RGBA
+ * Signature: (II[B)[I
+ */
+JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_convertYUV2RGBA
+  (JNIEnv *, jobject, jint, jint, jbyteArray);
 
 #ifdef __cplusplus
 }

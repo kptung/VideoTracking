@@ -107,4 +107,6 @@ public class NativeTracking {
 
 	public native synchronized byte[] getTrackingObjImg(int objectID);
 
+	public native synchronized int[] convertYUV2RGBA(int width, int height, byte[] yuv);
+
 }
