@@ -680,7 +680,7 @@ public:
 				selection = camsel;
 			
 			/// debug
-			debug_flag = (frame_id == 210 && itr->first == 0) ? true : false;
+			//debug_flag = (frame_id == 210 && itr->first == 0) ? true : false;
 			if (debug_flag) imgshow(image, selection);
 			cv::Mat im = extrROI(image, selection);
 			Mat wt, ewt;
