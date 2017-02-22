@@ -109,4 +109,6 @@ public class NativeTracking {
 
 	public native synchronized int[] convertYUV2RGBA(int width, int height, byte[] yuv);
 
+	public native synchronized byte[] convertRGBA2YUV(int width, int height, byte[] bgra);
+
 }

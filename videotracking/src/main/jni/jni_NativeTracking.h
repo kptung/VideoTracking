@@ -71,6 +71,14 @@ JNIEXPORT jbyteArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_getT
 JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_convertYUV2RGBA
   (JNIEnv *, jobject, jint, jint, jbyteArray);
 
+/*
+ * Class:     org_iii_snsi_videotracking_NativeTracking
+ * Method:    convertRGBA2YUV
+ * Signature: (II[I)[B
+ */
+JNIEXPORT jbyteArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_convertRGBA2YUV
+  (JNIEnv *, jobject, jint, jint, jintArray);
+
 #ifdef __cplusplus
 }
 #endif

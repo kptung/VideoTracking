@@ -19,8 +19,8 @@
 #define LOGD(...) ((void)__android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__))
 
 #define JNI_DBG 0
-#define VIDEO_TRACKING_LIB_VERSION 0.2
-#define MIN_RECT_VALUE 13
+#define VIDEO_TRACKING_LIB_VERSION 0.03
+#define MIN_RECT_VALUE 14
 
 #ifndef JPG
 #define JPG (std::string(".jpg"))
@@ -400,10 +400,8 @@ JNIEXPORT jbyteArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_getT
 JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_convertYUV2RGBA
   (JNIEnv *env, jobject jNativeTracking, jint jwidth, jint jheight, jbyteArray jyuv) {
 
-      //, jintArray bgra
       jbyte* _yuv  = env->GetByteArrayElements(jyuv, 0);
       int* _bgra = new int[jwidth * jheight];
-      //jint* _bgra = env->GetIntArrayElements(bgra, 0);
 
       cv::Mat myuv(jheight + jheight/2, jwidth, CV_8UC1, (unsigned char *)_yuv);
       cv::Mat mbgra(jheight, jwidth, CV_8UC4, (unsigned char *)_bgra);
@@ -413,13 +411,39 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_conve
       cv::cvtColor(myuv, mbgra, CV_YUV420sp2BGR, 4);
 
       env->ReleaseByteArrayElements(jyuv, _yuv, 0);
-      //env->ReleaseIntArrayElements(bgra, _bgra, 0);
 
-      /* return the additional rect */
+      /* return bgra array */
       jintArray bgra = env->NewIntArray(jwidth * jheight);
       env->SetIntArrayRegion(bgra, 0 , jwidth * jheight, _bgra);
 
       return bgra;
+
+  }
+
+/*
+ * Class:     org_iii_snsi_videotracking_NativeTracking
+ * Method:    convertRGBA2YUV
+ * Signature: (II[I)[B
+ */
+JNIEXPORT jbyteArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_convertRGBA2YUV
+  (JNIEnv *env, jobject jNativeTracking, jint jwidth, jint jheight, jintArray jbgra) {
+
+      jint* _bgra = env->GetIntArrayElements(jbgra, 0);
+      int size = (jheight + jheight/2) * jwidth;
+      jbyte* _yuv = new jbyte[size];
+
+      cv::Mat mbgra(jheight, jwidth, CV_8UC4, (unsigned char *)_bgra);
+      cv::Mat myuv(jheight + jheight/2, jwidth, CV_8UC1, (unsigned char *)_yuv);
+
+      cv::cvtColor(mbgra, myuv, CV_BGR2YUV);
+
+      env->ReleaseIntArrayElements(jbgra, _bgra, 0);
+
+      /* return yuv array */
+      jbyteArray yuv = env->NewByteArray(size);
+      env->SetByteArrayRegion(yuv, 0 , size, _yuv);
+
+      return yuv;
 
   }
 
