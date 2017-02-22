@@ -286,7 +286,7 @@ public:
 	std::vector<Point> getLocs(const cv::Mat& src)
 	{
 		/// threshold
-		double maxValue = 0.6;
+		double maxValue = 0.7;
 		double th = mean(src).val[0];
 		std::vector<Point> locs;
 
@@ -305,9 +305,16 @@ public:
 	double getCosineDist(const cv::Mat& src, const cv::Mat& tar)
 	{
 		cv::Mat sp, tp;
-		sp = src.clone();
-		tp = tar.clone();
-
+		if (src.channels() == 3 || tar.channels() == 3)
+		{
+			cvtColor(src, sp, CV_BGR2Luv);
+			cvtColor(tar, tp, CV_BGR2Luv);
+		}
+		else
+		{
+			sp = src.clone();
+			tp = tar.clone();
+		}
 		/*return sum(sp.dot(tp)).val[0] / sqrt(sum(sp.dot(sp)).val[0]) * sqrt(sum(tp.dot(tp)).val[0]);*/
 		double ab = sp.dot(tp);
 		double aa = sp.dot(sp);
@@ -332,8 +339,8 @@ public:
 			/// v1 is obtained from the template matching; if the value is higher, it means that the region is like the compared one 
 			v1.at(i) = 1.0 - weight.at<float>(loc);
 			/// v2 is obtained from the SAD difference; if the value is lower, it means that the region is like the compared one 
-			cv::Rect roi = cv::Rect(loc.x, loc.y, prev_roi.width, prev_roi.height) & Rect(0, 0, target.cols, target.rows);
-			v2.at(i) = getSAD(tmplate, target(roi) & cv::Mat(0, 0, target.cols, target.rows));
+			cv::Rect roi = cv::Rect(loc.x, loc.y, prev_roi.width, prev_roi.height);
+			v2.at(i) = getSAD(tmplate, target(roi));
 			// v3 is the distance weight; if the value is lower, it means that the region is closed to the compared one 
 			int x2 = loc.x + cvRound(prev_roi.width >> 1);
 			int y2 = loc.y + cvRound(prev_roi.height >> 1);
@@ -354,8 +361,9 @@ public:
 		/// looping
 		for (int i = 0; i < locs.size(); i++)
 		{	/// total weight w is the fusion weight; v1 is the template matching weight;  v2 is the SAD weight;  v3 is the distance weight;
-			w.at(i) = v1.at(i) + v2.at(i) + v4.at(i) + v5.at(i) + v6.at(i) + v3.at(i);
-			//w.at(i) *= v3.at(i);
+			w.at(i) = v1.at(i) + v2.at(i) + v5.at(i) + v6.at(i);
+// 			if (target.channels() > 1)
+// 				w.at(i) += ( v3.at(i) + v4.at(i)  );
 		}
 
 		/// get the max weight and its position
@@ -371,8 +379,8 @@ public:
 		for (int j = 0; j < weight.rows; j++)
 			for (int i = 0; i < weight.cols; i++)
 			{
-				int q = j - 1 + prev_roi.height ;
-				int p = i - 1 + prev_roi.width;
+				int q = j + prev_roi.height - 1;
+				int p = i + prev_roi.width -1;
 				mask.at<float>(Point(p, q))=weight.at<float>(Point(i, j));
 			}
 		return mask;
@@ -382,19 +390,16 @@ public:
 	/// Template Matching 
 	cv::Rect TMatch(const cv::Mat& target, const cv::Mat& tmplate, const cv::Rect prev_roi, const cv::Rect& selection, Mat& weight)
 	{
-		//cv::Mat tar = target.clone(), tmp = tmplate.clone(), fg;
-		cv::Mat tar = bgr2normalized(target), tmp = bgr2normalized(tmplate);
+		cv::Mat tar = target.clone(), tmp = tmplate.clone(), fg;
 		//extrObj(target, selection, fg);
 		int cols = target.cols - tmplate.cols + 1;
 		int rows = target.rows - tmplate.rows + 1;
 		weight = cv::Mat(rows, cols, CV_32FC1);
-		
 		/// Do the Matching and Normalize
-		matchTemplate(target, tmp, weight, match_method);
+		matchTemplate(extrROI(target, selection), tmp, weight, match_method);
 		normalize(weight, weight, 0, 1, NORM_MINMAX, -1, Mat());
 		if (match_method == 0 || match_method == 1)
 			weight = 1 - weight;
-		//weight = extrWt(target, weight, prev_roi);
 
 		/// find the possible regions
 		std::vector<Point>locs = getLocs(weight);
@@ -438,13 +443,11 @@ public:
 	{
 		/// narrow the rect. 
 		cv::Rect rec;
-//		int r = 13;
-// 		rec.x = roi.x + r;
-// 		rec.y = roi.y + r;
-// 		rec.width = roi.width - r;
-// 		rec.height = roi.height - r;
-// 		rec &= Rect(0, 0, source.cols, source.rows);
-		rec = roi;
+		int r = min(roi.width, roi.height)>>1;
+		rec.x = roi.x + r;
+		rec.y = roi.y + r;
+		rec.width = roi.width - r;
+		rec.height = roi.height - r;
 		cv::Mat tmp = source(rec);
 		cv::Mat tmpColor, ch[3], tmpmask;
 		cvtColor(tmp, tmpColor, CV_BGR2HSV);
@@ -561,14 +564,14 @@ public:
 		match_roi = m1rec;
 		Mat fg;
 		cv::Mat match = extrObj(image, match_roi, fg);
-		match = ((mean(match)).val[0] == 255) ? extrROI(image, match_roi)(match_roi) : match;
-		cv::Mat mat = image(match_roi);
+
 		cv::Mat tmp = bgr2normalized(tmplate);
 		match = bgr2normalized(match);
 		cv::Mat ws;
 		matchTemplate(match, tmp, ws, match_method);
 		double th1 = 1.0 - ws.at<float>(Point(0, 0));
-		
+		double th2 = histCompare(tmp, match);
+
 		double th = th1;
 		bool pbflag = false;
 		if (probth.at(0) == -1)
@@ -578,7 +581,7 @@ public:
 		}
 		Scalar thmean, thstd;
 		meanStdDev(probth, thmean, thstd);
-		bool thflag = (th <= thmean.val[0]*4  - thstd.val[0]) ? true : false;
+		bool thflag = (th <= thmean.val[0]*4) ? true : false;
 		if (!pbflag && thflag)
 			probth.push_back(th);
 
@@ -677,7 +680,7 @@ public:
 				selection = camsel;
 			
 			/// debug
-			//debug_flag = (frame_id == 45 && itr->first == 0) ? true : false;
+			//debug_flag = (frame_id == 74 && itr->first == 0) ? true : false;
 			if (debug_flag) imgshow(image, selection);
 			cv::Mat im = extrROI(image, selection);
 			Mat wt, ewt;
@@ -686,6 +689,7 @@ public:
 
 			cv::Rect match_roi;
 			bool trflag;
+		
 			trflag = comProb(tmplate, image, m1rec, match_roi, probth, backproj, wt, selection, prev_roi, miss);
 
 			if (resampling)
@@ -704,7 +708,7 @@ public:
 
 				///  Update Parameter: update the template 
 				m_active_prev_tmplate.at(itr->first) = target(match_roi);
-				Mat tt = target(match_roi);
+
 				/// Update Parameter: update the color range
 				m_active_tmplate_colorange.at(itr->first) = getColorange(target, match_roi);
 
