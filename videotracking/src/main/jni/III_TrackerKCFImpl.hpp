@@ -23,6 +23,28 @@
   |---------------------------*/
 namespace cv {
 
+	double compareHistRGB(Mat template_image1, Mat template_image2) {
+		MatND hist1, hist2;
+		if (template_image1.cols == 0 || template_image1.rows == 0 ||
+			template_image2.cols == 0 || template_image2.rows == 0) {
+			return 65535;
+		}
+		Mat arrays1[] = { template_image1 };
+		Mat arrays2[] = { template_image2 };
+		int channels[] = { 0, 1, 2 };
+		//hist bins in 3 dimensions
+		int histSize[] = { 32,32,32 };
+		float sranges[] = { 0, 256 };
+		const float* ranges[] = { sranges, sranges, sranges };
+		calcHist(arrays1, 1, channels, Mat(), hist1, 3, histSize, ranges, true, false);
+		calcHist(arrays2, 1, channels, Mat(), hist2, 3, histSize, ranges, true, false);
+		double res = compareHist(hist1, hist2, CV_COMP_CHISQR);
+		res = res / 32 / 32 / 32;
+		if (res >= 1.1) {
+			printf("result = %f\n", res);
+		}
+		return res;
+	}
 	/*
 	* Prototype
 	*/
@@ -31,7 +53,8 @@ namespace cv {
 		enum MODE {
 			GRAY = (1u << 0),
 			CN = (1u << 1),
-			CUSTOM = (1u << 2)
+			CUSTOM = (1u << 2),
+			LOG = (1u << 3)
 		};
 
 		struct CV_EXPORTS Params
@@ -40,7 +63,7 @@ namespace cv {
 			* \brief Constructor
 			*/
 			Params();
-
+			Params(bool);
 			/**
 			* \brief Read parameters from file, currently unused
 			*/
@@ -60,6 +83,7 @@ namespace cv {
 			bool split_coeff;             //!<  split the training coefficients into two matrices
 			bool wrap_kernel;             //!<  wrap around the kernel values
 			bool compress_feature;        //!<  activate the pca method to compress the features
+			bool is_parent;
 			int max_patch_size;           //!<  threshold for the ROI size
 			int compressed_size;          //!<  feature size after compression
 			unsigned int desc_pca;        //!<  compressed descriptors of TrackerKCF::MODE
@@ -112,7 +136,7 @@ namespace cv {
 			std::vector<Mat> & layers_data, std::vector<Mat> & xf_data, std::vector<Mat> & yf_data, std::vector<Mat> xyf_v, Mat xy, Mat xyf) const;
 		void calcResponse(const Mat alphaf_data, const Mat kf_data, Mat & response_data, Mat & spec_data) const;
 		void calcResponse(const Mat alphaf_data, const Mat alphaf_den_data, const Mat kf_data, Mat & response_data, Mat & spec_data, Mat & spec2_data) const;
-
+		bool search_matching(const Mat& image, Rect2d& boundingBox);
 		void shiftRows(Mat& mat) const;
 		void shiftRows(Mat& mat, int n) const;
 		void shiftCols(Mat& mat, int n) const;
@@ -145,6 +169,9 @@ namespace cv {
 		std::vector<Mat> layers_pca_data;
 		std::vector<Scalar> average_data;
 		Mat img_Patch;
+		MatND hist; //template hist
+		Rect2d firstbox;
+		Mat template_image;
 
 		// storage for the extracted features, KRLS model, KRLS compressed model
 		Mat X[2], Z[2], Zc[2];
@@ -221,6 +248,9 @@ namespace cv {
 			roi.y  = floor(roi.y / imageResizeFactor);
 			roi.width  = floor(roi.width / imageResizeFactor);
 			roi.height  = floor(roi.height / imageResizeFactor);
+			firstbox = roi;
+			resize(image.clone(), template_image, Size(image.cols / imageResizeFactor, image.rows / imageResizeFactor));
+			template_image = template_image(firstbox);
 		}
 
 		// add padding to the roi
@@ -228,21 +258,21 @@ namespace cv {
 		roi.y -= roi.height / 2;
 		roi.width *= 2;
 		roi.height *= 2;*/
-
+		
+		
 		roi_rate_x = image.cols / roi.width - 2;
 		roi_rate_y = image.rows / roi.height - 2;
-		if (roi_rate_x > 5)roi_rate_x = 5;
+		if (roi_rate_x > 9)roi_rate_x = 9;
 		if (roi_rate_x < 2)roi_rate_x = 2;
-		if (roi_rate_y > 5)roi_rate_y = 5;
+		if (roi_rate_y > 9)roi_rate_y = 9;
 		if (roi_rate_y < 2)roi_rate_y = 2;
 		roi.x -= (roi_rate_x -1) * roi.width/2;
 		roi.y -= (roi_rate_y -1) * roi.height/2;
 		roi.width *= roi_rate_x;
 		roi.height *= roi_rate_y;
-
+		
 		// initialize the hann window filter
 		createHanningWindow(hann, roi.size(), CV_64F);
-
 		int shortTemplateSide = hann.rows > hann.cols ? hann.cols : hann.rows;
 		for (int i = 0;; i++) {
 			if (((double)shortTemplateSide / pow(2, i)) < 70) {
@@ -275,12 +305,14 @@ namespace cv {
 		// record the non-compressed descriptors
 		if ((params.desc_npca & GRAY) == GRAY)descriptors_npca.push_back(GRAY);
 		if ((params.desc_npca & CN) == CN)descriptors_npca.push_back(CN);
+		if ((params.desc_npca & LOG) == LOG)descriptors_npca.push_back(LOG);
 		if (use_custom_extractor_npca)descriptors_npca.push_back(CUSTOM);
 		features_npca.resize(descriptors_npca.size());
 
 		// record the compressed descriptors
 		if ((params.desc_pca & GRAY) == GRAY)descriptors_pca.push_back(GRAY);
 		if ((params.desc_pca & CN) == CN)descriptors_pca.push_back(CN);
+		if ((params.desc_pca & LOG) == LOG)descriptors_pca.push_back(LOG);
 		if (use_custom_extractor_pca)descriptors_pca.push_back(CUSTOM);
 		features_pca.resize(descriptors_pca.size());
 
@@ -290,12 +322,107 @@ namespace cv {
 			|| (params.desc_npca & GRAY) == GRAY
 			|| (params.desc_pca & CN) == CN
 			|| (params.desc_npca & CN) == CN
+			|| (params.desc_pca & LOG) == LOG
+			|| (params.desc_npca & LOG) == LOG
 			|| use_custom_extractor_pca
 			|| use_custom_extractor_npca
 		);
 
 		// TODO: return true only if roi inside the image
 		return true;
+	}
+
+	bool III_TrackerKCFImpl::search_matching(const Mat& image, Rect2d& boundingBox) {
+		double minVal, maxVal;	// min-max response
+		Point minLoc, maxLoc;	// min-max location
+		Mat testxx, testzz;
+		Mat img = image.clone();
+		// check the channels of the input image, grayscale is preferred
+		CV_Assert(img.channels() == 1 || img.channels() == 3);
+		Rect2d roi2 = roi;
+		roi2.x = round(roi.x);
+		roi2.y = round(roi.y);
+		roi2.width = round(roi.width);
+		roi2.height = round(roi.height);
+
+		// resize the image whenever needed
+		if (resizeImage)resize(img.clone(), img, Size(img.cols / imageResizeFactor, img.rows / imageResizeFactor));
+		
+		roi2.x = floor(boundingBox.x / imageResizeFactor);
+		roi2.y = floor(boundingBox.y / imageResizeFactor);
+		roi2.x -= (roi_rate_x - 1) * roi2.width / roi_rate_x / 2;
+		roi2.y -= (roi_rate_y - 1) * roi2.height / roi_rate_y / 2;
+
+		// detection part
+		if (frame > 0) {
+
+			// extract and pre-process the patch
+			// get non compressed descriptors
+			for (unsigned i = 0; i < descriptors_npca.size() - extractor_npca.size(); i++) {
+				if (!getSubWindow(img, roi, features_npca[i], img_Patch, descriptors_npca[i]))return false;
+			}
+			//get non-compressed custom descriptors
+			for (unsigned i = 0, j = (unsigned)(descriptors_npca.size() - extractor_npca.size()); i < extractor_npca.size(); i++, j++) {
+				if (!getSubWindow(img, roi, features_npca[j], extractor_npca[i]))return false;
+			}
+			if (features_npca.size() > 0)merge(features_npca, X[1]);
+
+			// get compressed descriptors
+			for (unsigned i = 0; i < descriptors_pca.size() - extractor_pca.size(); i++) {
+				if (!getSubWindow(img, roi, features_pca[i], img_Patch, descriptors_pca[i]))return false;
+			}
+			//get compressed custom descriptors
+			for (unsigned i = 0, j = (unsigned)(descriptors_pca.size() - extractor_pca.size()); i < extractor_pca.size(); i++, j++) {
+				if (!getSubWindow(img, roi, features_pca[j], extractor_pca[i]))return false;
+			}
+			if (features_pca.size() > 0)merge(features_pca, X[0]);
+
+			//compress the features and the KRSL model
+			if (params.desc_pca != 0) {
+				compress(proj_mtx, X[0], X[0], data_temp, compress_data);
+				compress(proj_mtx, Z[0], Zc[0], data_temp, compress_data);
+			}
+
+			// copy the compressed KRLS model
+			Zc[1] = Z[1];
+
+			// merge all features
+			if (features_npca.size() == 0) {
+				testxx = X[0];
+				testzz = Zc[0];
+			}
+			else if (features_pca.size() == 0) {
+				testxx = X[1];
+				testzz = Z[1];
+			}
+			else {
+				merge(X, 2, testxx);
+				merge(Zc, 2, testzz);
+			}
+
+			//compute the gaussian kernel
+			denseGaussKernel(params.sigma, testxx, testzz, k, layers, vxf, vyf, vxyf, xy_data, xyf_data);
+			/*
+			imshow("dGK", k);
+			waitKey(0);
+			cvDestroyAllWindows();*/
+			// compute the fourier transform of the kernel
+			fft2(k, kf);
+			if (frame == 1)spec2 = Mat_<Vec2d >(kf.rows, kf.cols);
+
+			// calculate filter response
+			if (params.split_coeff)
+				calcResponse(alphaf, alphaf_den, kf, response, spec, spec2);
+			else
+				calcResponse(alphaf, kf, response, spec);
+
+			/*imshow("response", response);
+			waitKey(0);
+			cvDestroyAllWindows();*/
+			// extract the maximum response
+			minMaxLoc(response, &minVal, &maxVal, &minLoc, &maxLoc);
+		}
+		return false;
 	}
 
 	/*
@@ -386,12 +513,11 @@ namespace cv {
 				merge(X, 2, x);
 				merge(Zc, 2, z);
 			}
-			/*imshow("dGK", k);
-			waitKey(0);
-			cvDestroyAllWindows();*/
+
 			//compute the gaussian kernel
 			denseGaussKernel(params.sigma, x, z, k, layers, vxf, vyf, vxyf, xy_data, xyf_data);
-			/*imshow("dGK",k);
+			/*
+			imshow("dGK", k);
 			waitKey(0);
 			cvDestroyAllWindows();*/
 			// compute the fourier transform of the kernel
@@ -404,20 +530,29 @@ namespace cv {
 			else
 				calcResponse(alphaf, kf, response, spec);
 
+			/*imshow("response", response);
+			waitKey(0);
+			cvDestroyAllWindows();*/
 			// extract the maximum response
 			minMaxLoc(response, &minVal, &maxVal, &minLoc, &maxLoc);
 			if (prev_max == -1) {
 				prev_max = maxVal;
 			}
-			else if (maxVal < (prev_max*0.5)) {
-				if (override_roi) {
-				return false;
+			else if (maxVal < (prev_max*0.8)) {
+				//if (override_roi) {
+				if (!params.is_parent) {
+					printf("tracker_lost");
+					return false;
 				}
-				learning_flag = false;
+				//}
+				//learning_flag = false;
 			}
 			else {
 				if (override_roi && (maxVal < (prev_max*0.9))) {
-					return false;
+					if (!params.is_parent) {
+						printf("tracker_lost");
+						return false;
+					}
 				}
 				prev_max = maxVal;
 
@@ -457,14 +592,17 @@ namespace cv {
 			*/
 			prev_frame = img.clone();
 			Rect2d temproi;
+			Rect2d prevroi;
+			Rect2d prevBoundingbox;
 			double offsetx = (maxLoc.x * (double)roi.width / (double)response.cols - roi.width / 2 + 1);
 			double offsety = (maxLoc.y * (double)roi.height / (double)response.rows - roi.height / 2 + 1);
 			temproi.x = roi.x + offsetx;
 			temproi.y = roi.y + offsety;
-			if ((temproi.x + roi.width / 2) < 0)return false;
-			if ((temproi.y + roi.height / 2) < 0)return false;
-			if ((temproi.x + roi.width / 2) > img.cols)return false;
-			if ((temproi.y + roi.height / 2) > img.rows)return false;
+			if ((temproi.x + roi.width / 4) < 0 || (temproi.y + roi.height / 4) < 0 ||
+				(temproi.x + roi.width / 4) > img.cols || (temproi.y + roi.height / 4) > img.rows) {
+				return false;
+			}
+
 			/*
 			if (!flow.empty()) {
 				Scalar scalar = mean(flow);
@@ -472,6 +610,7 @@ namespace cv {
 					return false;
 				}
 			}*/
+			prevroi = roi;
 			roi.x = temproi.x;
 			roi.y = temproi.y;
 			//imshow("result", img(roi));
@@ -479,9 +618,46 @@ namespace cv {
 			// update the bounding box
 			int temp_x = (resizeImage ? ceil(roi.x) * imageResizeFactor : roi.x) + (roi_rate_x - 1)*boundingBox.width / 2;
 			int temp_y = (resizeImage ? ceil(roi.y) * imageResizeFactor : roi.y) + (roi_rate_y - 1)*boundingBox.height / 2;
+			prevBoundingbox = boundingBox;
 			boundingBox.x = temp_x;
 			boundingBox.y = temp_y;
-			
+
+			//imshow("", image(boundingBox));
+			Rect2d resizeBoundingBox = boundingBox;
+			Rect2d templateBoundingBox = boundingBox;
+			resizeBoundingBox.x = round(boundingBox.x / imageResizeFactor);
+			resizeBoundingBox.y = round(boundingBox.y / imageResizeFactor);
+			resizeBoundingBox.width = round(boundingBox.width / imageResizeFactor);
+			resizeBoundingBox.height = round(boundingBox.height / imageResizeFactor);
+			if (resizeBoundingBox.x < 0)resizeBoundingBox.x = 0;
+			if (resizeBoundingBox.y < 0)resizeBoundingBox.y = 0;
+			if ((resizeBoundingBox.x + resizeBoundingBox.width) > (img.cols - 1))resizeBoundingBox.width = img.cols - 1 - resizeBoundingBox.x;
+			if ((resizeBoundingBox.y + resizeBoundingBox.height) > (img.rows - 1))resizeBoundingBox.height = img.rows - 1 - resizeBoundingBox.y;
+			templateBoundingBox = resizeBoundingBox;
+			templateBoundingBox.x = 0;
+			templateBoundingBox.y = 0;
+			if ((templateBoundingBox.x + templateBoundingBox.width) > (template_image.cols - 1))templateBoundingBox.width = template_image.cols - 1 - templateBoundingBox.x;
+			if ((templateBoundingBox.y + templateBoundingBox.height) > (template_image.rows - 1))templateBoundingBox.height = template_image.rows - 1 - templateBoundingBox.y;
+
+			if (resizeBoundingBox.width <= 0 || resizeBoundingBox.height <= 0) {
+				roi = prevroi;
+				boundingBox = prevBoundingbox;
+				if (!params.is_parent) {
+					printf("tracker_lost");
+				}
+				return false;
+			}
+
+			if (compareHistRGB(img(resizeBoundingBox).clone(), template_image(templateBoundingBox).clone()) > 1.1) {//rollback
+				roi = prevroi;
+				boundingBox = prevBoundingbox;
+				//imshow("", img(resizeBoundingBox));
+				//waitKey(0);
+				if (!params.is_parent) {
+					printf("tracker_lost");
+				}
+				return false;
+			}
 
 			if (!learning_flag) {
 				return true;
@@ -741,7 +917,7 @@ namespace cv {
 		patch = img(region).clone();
 		//imshow("patch",patch);
 		//waitKey(0);
-		resize(patch, patch, Size(ceil((double)patch.cols/ (double)templateResizeFactor), ceil((double)patch.rows/ (double)templateResizeFactor)));
+		
 
 		// add some padding to compensate when the patch is outside image border
 		int addTop , addBottom, addLeft, addRight;
@@ -750,6 +926,21 @@ namespace cv {
 		addBottomFlag = _roi.height + _roi.y > img.rows;
 		addLeftFlag = _region.x < 0;
 		addRightFlag = _roi.width + _roi.x > img.cols;
+
+		int resize_x;
+		int resize_y;
+		if (!(addTopFlag || addBottomFlag)) { 
+			resize_y = hann.rows; 
+		} else {
+			resize_y = round((double)patch.rows / (double)templateResizeFactor);
+		}
+		if (!(addLeftFlag || addRightFlag)) {
+			resize_x = hann.cols;
+		} else {
+			resize_x = round((double)patch.cols / (double)templateResizeFactor);
+		}
+		resize(patch, patch, Size(resize_x, resize_y));
+
 		if (addTopFlag || addBottomFlag) {
 			if (addTopFlag&&addBottomFlag) {
 				addTop = round((hann.rows - patch.rows)*(abs(_region.y)) / (abs(_region.y) + (_roi.height + _roi.y - img.rows)));
@@ -795,7 +986,7 @@ namespace cv {
 			extractCN(patch, feat);
 			feat = feat.mul(hann_cn); // hann window filter
 			break;
-		default: // GRAY
+		case GRAY: 
 			if (img.channels()>1)
 				cvtColor(patch, feat, CV_BGR2GRAY);
 			else
@@ -805,6 +996,20 @@ namespace cv {
 				printf("size are different");
 			}
 			feat = feat / 255.0 - 0.5; // normalize to range -0.5 .. 0.5
+			feat = feat.mul(hann); // hann window filter
+			break;
+		case LOG:
+			Mat gaussian = patch.clone();
+			Mat gray;
+			Mat edge;
+			GaussianBlur(patch, gaussian, Size(3, 3), 0, 0, BORDER_DEFAULT);
+			cvtColor(gaussian, gray, CV_BGR2GRAY);
+			Laplacian(gray, edge, gray.depth(), 3/*kernel size*/, 1, 0, BORDER_DEFAULT);
+			//imshow("LOG", edge);
+			//waitKey(0);
+			convertScaleAbs(edge, feat);
+			feat.convertTo(feat, CV_64F);
+			feat = feat / 255.0;// -0.5; // normalize to range -0.5 .. 0.5
 			feat = feat.mul(hann); // hann window filter
 			break;
 		}
@@ -877,7 +1082,6 @@ namespace cv {
 
 		fft2(x_data, xf_data, layers_data);
 		fft2(y_data, yf_data, layers_data);
-
 		normX = norm(x_data);
 		normX *= normX;
 		normY = norm(y_data);
@@ -890,13 +1094,12 @@ namespace cv {
 	    }
 		pixelWiseMult(xf_data, yf_data, xyf_v, 0, true);
 		sumChannels(xyf_v, xyf);
-		ifft2(xyf, xyf);
-
 		if (params.wrap_kernel) {
 			shiftRows(xyf, x_data.rows / 2);
 			shiftCols(xyf, x_data.cols / 2);
 		}
 
+		ifft2(xyf, xyf);
 		//(xx + yy - 2 * xy) / numel(x)
 		xy = (normX + normY - 2 * xyf) / (x_data.rows*x_data.cols*x_data.channels());
 
@@ -1021,6 +1224,25 @@ namespace cv {
 	/*
 	* Parameters
 	*/
+	III_TrackerKCFImpl::Params::Params(bool isParent) {
+		sigma = 0.2;
+		lambda = 0.01;
+		interp_factor = 0.075;
+		output_sigma_factor = 1.0 / 16.0;
+		resize = true;
+		max_patch_size = 10 * 10;
+		split_coeff = true;
+		wrap_kernel = false;
+		desc_npca = LOG;
+		desc_pca = CN;
+		is_parent = isParent;
+		//feature compression
+		compress_feature = true;
+		compressed_size = 2;
+		pca_learning_rate = 0.15;
+
+	}
+
 	III_TrackerKCFImpl::Params::Params() {
 		sigma = 0.2;
 		lambda = 0.01;
@@ -1030,14 +1252,13 @@ namespace cv {
 		max_patch_size = 10 * 10;
 		split_coeff = true;
 		wrap_kernel = false;
-		desc_npca = GRAY;
+		desc_npca = LOG;
 		desc_pca = CN;
-
+		is_parent = false;
 		//feature compression
 		compress_feature = true;
 		compressed_size = 2;
 		pca_learning_rate = 0.15;
-
 	}
 
 	void III_TrackerKCFImpl::Params::read(const cv::FileNode& /*fn*/) {}

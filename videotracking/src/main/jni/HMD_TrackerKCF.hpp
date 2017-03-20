@@ -46,14 +46,15 @@ public:
 		{
 			m_active_roi_target.insert(std::make_pair(obj_id, obj_roi));
 			Ptr< III_TrackerKCFImpl > tracker = Ptr<III_TrackerKCFImpl>(new III_TrackerKCFImpl());
-			Ptr< III_TrackerKCFImpl > parent = Ptr<III_TrackerKCFImpl>(new III_TrackerKCFImpl());
+			Ptr< III_TrackerKCFImpl > parent = Ptr<III_TrackerKCFImpl>(new III_TrackerKCFImpl(III_TrackerKCFImpl::Params(true)));
 			Rect2d parent_roi = Rect2d();
 			//calculate parent roix
+			
 			parent_roi.x = round(roi.x - ceil((double)source.cols / (double)roi.width / 2 - 1)*roi.width / 2);
 			if (parent_roi.x < 0) {
 				parent_roi.x = 0;
 			}
-			parent_roi.width = roi.width * ceil((double)source.cols / (double)roi.width / 2);
+			parent_roi.width = source.cols;// roi.width * ceil((double)source.cols / (double)roi.width / 2);
 			if ((parent_roi.x + parent_roi.width) > (source.cols - 1)) {
 				parent_roi.width = source.cols - 1 - parent_roi.x;
 			}
@@ -62,10 +63,11 @@ public:
 			if (parent_roi.y < 0) {
 				parent_roi.y = 0;
 			}
-			parent_roi.height = roi.height * ceil((double)source.rows / (double)roi.height / 2);
+			parent_roi.height = source.rows;// roi.height * ceil((double)source.rows / (double)roi.height / 2);
 			if ((parent_roi.y + parent_roi.height) > (source.rows - 1)) {
-				parent_roi.height = source.rows - 1 - parent_roi.y;
+				parent_roi.height = source.rows - parent_roi.y - 1;
 			}
+
 			success = tracker->init(source.clone(), roi);
 			success = parent->init(source.clone(), parent_roi);
 			//imshow("", source(parent_roi));
@@ -124,25 +126,22 @@ public:
 
 			bool rt_parent = parent->update(target, roi_parent, false);
 			if (rt_parent) {
-				if (!m_tracker_kcf_target_state.at(itr_object->first)) {
+
 					Point offset = tracker_offset.at(itr_object->first);
 					if ((roi_parent.x + offset.x) > 0 && (roi_parent.y + offset.y) > 0 &&
 						(roi_parent.x + offset.x) < target.cols && (roi_parent.y + offset.y) < target.rows) {
-						Rect2d newroi = Rect2d(roi_parent.x + offset.x, roi_parent.y + offset.y, 0, 0);
+						Rect2d newroi = Rect2d(roi_parent.x + offset.x, roi_parent.y + offset.y, roi_target.width, roi_target.height);
 						bool rt = tracker->update(target, newroi, true);
 						if (rt) {
 							m_tracker_kcf_target_state.erase(itr_object->first);
 							m_tracker_kcf_target_state.insert(std::make_pair(itr_object->first, true));
 						}
 					}
-				}
+
 				m_active_roi_parent.erase(itr_object->first);
 				m_active_roi_parent.insert(std::make_pair(itr_object->first, roi_parent));
 				//objects.insert(std::make_pair(itr_object->first + 2, roi_parent));
-			} else {
-				m_tracker_kcf_target_state.erase(itr_object->first);
-				m_tracker_kcf_target_state.insert(std::make_pair(itr_object->first, false));
-			}
+			} 
 		}
 
 		return status;
