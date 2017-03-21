@@ -1,4 +1,4 @@
-#ifndef __HMD_TrackerTM_hpp__
+﻿#ifndef __HMD_TrackerTM_hpp__
 #define __HMD_TrackerTM_hpp__
 
 #include <list>
