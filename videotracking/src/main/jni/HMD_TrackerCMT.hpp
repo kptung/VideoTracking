@@ -11,13 +11,6 @@
 
 #include <stdlib.h>     /* NULL */
 #include <assert.h>     /* assert */
-#ifdef _WIN32
-#else
-const std::string db_output("/sdcard/output/");
-#include <jni.h>
-#include <android/log.h>
-#endif
-
 #define _CRT_SECURE_NO_WARNINGS
 
 #include <iostream>
