@@ -1,7 +1,7 @@
 #include "HMD_AbstractTracker.hpp"
 #include "HMD_TrackerTM.hpp"
 #include "HMD_TrackerKCF.hpp"
-
+#include "HMD_TrackerCMT.hpp"
 using namespace cv;
 using namespace std;
 
@@ -23,6 +23,11 @@ T_HANDLE CreateVideoTracker( int type )
 
 		pTracker = new HMD_TrackerKCF();
 		break;
+
+    case 2:
+
+    	pTracker = new TrackerCMT();
+    	break;
 
 	default:
 		break;

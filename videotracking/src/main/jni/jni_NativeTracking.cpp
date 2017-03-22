@@ -75,7 +75,7 @@ JNIEXPORT jlong JNICALL Java_org_iii_snsi_videotracking_NativeTracking_createHan
       trackingObjects.clear();
       if(JNI_DBG)
           LOGD("CreateVideoTracker");
-      return (jlong)CreateVideoTracker();
+      return (jlong)CreateVideoTracker(2);
   }
 
 /*
