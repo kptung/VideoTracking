@@ -37,7 +37,6 @@ public:
 
 	TrackerCMT() : AbstractTracker()
 	{
-		//frame_id = 92;
 		frame_id = 1;
 	}
 
@@ -53,14 +52,6 @@ public:
 		cmt.initialise(im_gray, initTopLeft, initBottomDown);
 		cmt.processFrame(im_gray);
 
-/*		Mat img = source.clone();*/
-
-// 		for (int i = 0; i < cmt.trackedKeypoints.size(); i++)
-// 			cv::circle(img, cmt.trackedKeypoints[i].first.pt, 3, cv::Scalar(255, 255, 255));
-// 		cv::line(img, cmt.topLeft, cmt.topRight, cv::Scalar(255, 255, 255));
-// 		cv::line(img, cmt.topRight, cmt.bottomRight, cv::Scalar(255, 255, 255));
-// 		cv::line(img, cmt.bottomRight, cmt.bottomLeft, cv::Scalar(255, 255, 255));
-// 		cv::line(img, cmt.bottomLeft, cmt.topLeft, cv::Scalar(255, 255, 255));
 		return obj_id;
 	}
 
@@ -75,13 +66,7 @@ public:
 		cv::Mat im_gray;
 		cv::cvtColor(target, im_gray, CV_RGB2GRAY);
 		cmt.processFrame(im_gray);
-// 		Mat img = target.clone();
-// 		for (int i = 0; i < cmt.trackedKeypoints.size(); i++)
-// 			cv::circle(img, cmt.trackedKeypoints[i].first.pt, 3, cv::Scalar(255, 255, 255));
-// 		cv::line(img, cmt.topLeft, cmt.topRight, cv::Scalar(255, 255, 255));
-// 		cv::line(img, cmt.topRight, cmt.bottomRight, cv::Scalar(255, 255, 255));
-// 		cv::line(img, cmt.bottomRight, cmt.bottomLeft, cv::Scalar(255, 255, 255));
-// 		cv::line(img, cmt.bottomLeft, cmt.topLeft, cv::Scalar(255, 255, 255));
+
 		auto itr = m_active_objects.begin();
 		for (; itr != m_active_objects.end(); ++itr) {
 			int width = cmt.topRight.x - cmt.topLeft.x + 1;
@@ -89,7 +74,6 @@ public:
 			Rect match_roi(cmt.topLeft.x, cmt.topLeft.y, width, height);
 			objects.insert(std::make_pair(itr->first, match_roi));
 		}
-		
 
 		return (objects.size() > 0);
 	}
