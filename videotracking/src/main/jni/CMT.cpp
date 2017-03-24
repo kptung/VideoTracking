@@ -103,22 +103,33 @@ CMT::CMT()
     estimateRotation = true;
     nbInitialKeypoints = 0;
     isInitialized = false;
+	//Initialise detector, descriptor, matcher
+#if OPENCV_VERSION_CODE<OPENCV_VERSION(3,1,0)
+	detector = cv::Algorithm::create<cv::FeatureDetector>(detectorType.c_str());
+	descriptorExtractor = cv::Algorithm::create<cv::DescriptorExtractor>(descriptorType.c_str());
+	descriptorMatcher = cv::DescriptorMatcher::create(matcherType.c_str());
+	std::vector<std::string> list;
+	cv::Algorithm::getList(list);
+#else
+	detector = cv::BRISK::create();
+	descriptorMatcher = cv::DescriptorMatcher::create(matcherType.c_str());
+#endif
 }
 
 void CMT::initialise(cv::Mat im_gray0, cv::Point2f topleft, cv::Point2f bottomright)
 {
 
-    //Initialise detector, descriptor, matcher
-#if OPENCV_VERSION_CODE<OPENCV_VERSION(3,1,0)
-    detector = cv::Algorithm::create<cv::FeatureDetector>(detectorType.c_str());
-    descriptorExtractor = cv::Algorithm::create<cv::DescriptorExtractor>(descriptorType.c_str());
-    descriptorMatcher = cv::DescriptorMatcher::create(matcherType.c_str());
-    std::vector<std::string> list;
-    cv::Algorithm::getList(list);
-#else
-    detector = cv::BRISK::create();
-    descriptorMatcher = cv::DescriptorMatcher::create(matcherType.c_str());
-#endif
+//     //Initialise detector, descriptor, matcher
+// #if OPENCV_VERSION_CODE<OPENCV_VERSION(3,1,0)
+//     detector = cv::Algorithm::create<cv::FeatureDetector>(detectorType.c_str());
+//     descriptorExtractor = cv::Algorithm::create<cv::DescriptorExtractor>(descriptorType.c_str());
+//     descriptorMatcher = cv::DescriptorMatcher::create(matcherType.c_str());
+//     std::vector<std::string> list;
+//     cv::Algorithm::getList(list);
+// #else
+//     detector = cv::BRISK::create();
+//     descriptorMatcher = cv::DescriptorMatcher::create(matcherType.c_str());
+// #endif
 
     //Get initial keypoints in whole image
     std::vector<cv::KeyPoint> keypoints;

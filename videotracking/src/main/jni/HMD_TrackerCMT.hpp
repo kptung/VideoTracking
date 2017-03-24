@@ -37,7 +37,9 @@ public:
 
 	TrackerCMT() : AbstractTracker()
 	{
+		//frame_id = 92;
 		frame_id = 1;
+		ratio = 1;
 	}
 
 	/// add a tracking obj
@@ -45,16 +47,35 @@ public:
 	{
 
 		int obj_id = AbstractTracker::addTrackingObject(source, obj_roi);
+
+		ratio = ratioObtain(source);
+
 		cv::Mat im_gray;
 		cv::cvtColor(source, im_gray, CV_RGB2GRAY);
-		cv::Point2f initTopLeft(obj_roi.x, obj_roi.y);
-		cv::Point2f initBottomDown(obj_roi.x+obj_roi.width-1, obj_roi.y+obj_roi.height-1);
-		cmt.initialise(im_gray, initTopLeft, initBottomDown);
-		cmt.processFrame(im_gray);
-
+		if (obj_id >= 0)
+		{
+			cv::Rect roi = obj_roi;
+			roi.x /= ratio;
+			roi.y /= ratio;
+			roi.width /= ratio;
+			roi.height /= ratio;
+			resize(im_gray, im_gray, Size(cvRound(source.cols / ratio), cvRound(source.rows / ratio)));
+			cv::Point2f initTopLeft(roi.x, roi.y);
+			cv::Point2f initBottomDown(roi.x + roi.width - 1, roi.y + roi.height - 1);
+			cmt.initialise(im_gray, initTopLeft, initBottomDown);
+			cmt.processFrame(im_gray);
+		}
 		return obj_id;
 	}
 
+	double ratioObtain(const Mat& im)
+	{
+		int rows = im.rows;
+		int cols = im.cols;
+		double sx = max(rows, cols) / max(frame_size.x, frame_size.y);
+		double sy = min(rows, cols) / min(frame_size.x, frame_size.y);
+		return min(sx, sy);
+	}
 	
 	/// Run the algorithm
 	bool runObjectTrackingAlgorithm(const cv::Mat& target, std::map<int, cv::Rect>& objects)
@@ -65,15 +86,23 @@ public:
 
 		cv::Mat im_gray;
 		cv::cvtColor(target, im_gray, CV_RGB2GRAY);
-		cmt.processFrame(im_gray);
+		
+		resize(im_gray, im_gray, Size(cvRound(target.cols / ratio), cvRound(target.rows / ratio)));
 
 		auto itr = m_active_objects.begin();
 		for (; itr != m_active_objects.end(); ++itr) {
+			cmt.processFrame(im_gray);
 			int width = cmt.topRight.x - cmt.topLeft.x + 1;
 			int height = cmt.bottomLeft.y - cmt.topLeft.y + 1;
 			Rect match_roi(cmt.topLeft.x, cmt.topLeft.y, width, height);
-			objects.insert(std::make_pair(itr->first, match_roi));
+			cv::Rect match = match_roi;
+			match.x *= ratio;
+			match.y *= ratio;
+			match.width *= ratio;
+			match.height *= ratio;
+			objects.insert(std::make_pair(itr->first, match));
 		}
+		
 
 		return (objects.size() > 0);
 	}
@@ -81,9 +110,11 @@ public:
 	
 
 private:
-
+	//////////////////////////////////////////////////////////////////////////
 	CMT cmt;
-
+	//////////////////////////////////////////////////////////////////////////
+	cv::Point frame_size = cv::Point(320, 240);
+	double ratio;
 	/// debug
 	int frame_id;
 	bool debug_flag;
