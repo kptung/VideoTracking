@@ -5,6 +5,7 @@
 #include <vector>
 #include <opencv2/opencv.hpp>
 #include <android/log.h>
+#include "timer.h"
 
 #include "HMD_AbstractTracker.hpp"
 
@@ -41,14 +42,25 @@ std::string ToString(const T& value)
 //// ////   DBG_INFO   //// ////
 //// //// ************ //// ////
 #ifdef ANDROID
+Timer timer;
 // For debug Image
 static int debugid = 1;
-bool writeDBGInfo(Rect rect) {
+bool writeDBGInfo(Rect rect, int opt) {
 	const std::string &filename = "/sdcard/TrackingDebug/TrackingRect.txt";
 	FILE *fp = fopen(filename.c_str(), "a");
 	if (fp)
 	{
-		fprintf(fp, "DBG ID: %d , Rect: %d %d %d %d\r\n", debugid, rect.x, rect.y, rect.width, rect.height);
+		switch(opt) {
+			case 0:
+				fprintf(fp, "INIT ID: %d , Rect: %d %d %d %d\r\n", debugid, rect.x, rect.y, rect.width, rect.height);
+				break;
+			case 1:
+				fprintf(fp, "ADD ID: %d , Rect: %d %d %d %d\r\n", debugid, rect.x, rect.y, rect.width, rect.height);
+				break;
+			case 2:
+				fprintf(fp, "RUN ID: %d , Rect: %d %d %d %d , %lld ms\r\n", debugid, rect.x, rect.y, rect.width, rect.height, timer.get_count());
+				break;
+		}
 		fclose(fp);
 		return true;
 	}
@@ -144,7 +156,7 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_initT
 
       // For debug Image
       if(JNI_DBG) {
-        writeDBGInfo(rec);
+        writeDBGInfo(rec, 0);
         cv::rectangle(image, rec, Scalar(255, 0, 0));
         cv::imwrite(std::string("/sdcard/TrackingDebug/INIT_")+ToString(debugid)+JPG, image);
         debugid++;
@@ -203,7 +215,7 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_addTr
 
           // For debug Image
           if(JNI_DBG) {
-            writeDBGInfo(target);
+            writeDBGInfo(target, 1);
             cv::rectangle(image, target, Scalar(255, 0, 0));
           }
       }
@@ -308,9 +320,12 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_proce
 
       if(JNI_DBG)
           LOGD("RunTargetTracking");
-      double t = (double)getTickCount();
+      //double t = (double)getTickCount();
+      timer.Reset();
+      timer.Start();
       RunTargetTracking((T_HANDLE)jhandle, image, results);
-      t = ((double)getTickCount() - t) / getTickFrequency();
+      timer.Pause();
+      //t = ((double)getTickCount() - t) / getTickFrequency();
 
       /* Remove map to int[] */
       int* buf_result = new int[results.size() * 5];
@@ -329,7 +344,7 @@ JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_proce
 
           // For debug Image
           if(JNI_DBG) {
-            writeDBGInfo(rect_element);
+            writeDBGInfo(rect_element, 2);
             cv::rectangle(image, rect_element, Scalar(255, 0, 0));
           }
       }
