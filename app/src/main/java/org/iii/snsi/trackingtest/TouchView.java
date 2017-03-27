@@ -27,16 +27,16 @@ public class TouchView extends View {
 	
 	// Starting positions of the bounding box
 
-	private float mLeftTopPosX = 30;
+	private float mLeftTopPosX = 100;
 	private float mLeftTopPosY = 120;
 
-	private float mRightTopPosX = 150;
+	private float mRightTopPosX = 220;
 	private float mRightTopPosY = 120;
 
-	private float mLeftBottomPosX = 30;
+	private float mLeftBottomPosX = 100;
 	private float mLeftBottomPosY = 200;
 
-	private float mRightBottomPosX = 150;
+	private float mRightBottomPosX = 220;
 	private float mRightBottomPosY = 200;
 	private float mPosX;
 	private float mPosY;
@@ -64,7 +64,7 @@ public class TouchView extends View {
 	private int[] rects;
 	private boolean trackflag=false;
 	private Paint paint=new Paint();
-
+    private Paint paint2 = new Paint();
 
 	public TouchView(Context context){
 		super(context);
@@ -193,36 +193,35 @@ public class TouchView extends View {
 				mRightBottomPosY=ry;
 
 				if(rects[i]==0) {
-					paint.setColor(Color.BLACK);
-					paint.setStyle(Paint.Style.STROKE);
-					paint.setStrokeWidth(5);
+					paint.setColor(Color.GREEN);
+					paint2.setColor(Color.GREEN);
 				}
 				else if(rects[i]==1){
 					paint.setColor(Color.WHITE);
-					paint.setStyle(Paint.Style.STROKE);
-					paint.setStrokeWidth(5);
+					paint2.setColor(Color.WHITE);
 				}
 				else if(rects[i]==2){
 					paint.setColor(Color.RED);
-					paint.setStyle(Paint.Style.STROKE);
-					paint.setStrokeWidth(5);
+					paint2.setColor(Color.RED);
 				}
 				else if(rects[i]==3){
 					paint.setColor(Color.BLUE);
-					paint.setStyle(Paint.Style.STROKE);
-					paint.setStrokeWidth(5);
+					paint2.setColor(Color.BLUE);
 				}
 				else if(rects[i]==4){
-					paint.setColor(Color.GREEN);
-					paint.setStyle(Paint.Style.STROKE);
-					paint.setStrokeWidth(5);
+					paint.setColor(Color.BLACK);
+					paint2.setColor(Color.BLACK);
 				}
 				else if(rects[i]==5){
 					paint.setColor(Color.YELLOW);
-					paint.setStyle(Paint.Style.STROKE);
-					paint.setStrokeWidth(5);
+					paint2.setColor(Color.YELLOW);
 				}
+
+				paint.setStyle(Paint.Style.STROKE);
+				paint.setStrokeWidth(5);
 				canvas.drawRect(mLeftTopPosX, mLeftTopPosY, mRightBottomPosX, mRightBottomPosY, paint);
+                paint2.setStyle(Paint.Style.FILL);
+				canvas.drawCircle((mLeftTopPosX+mRightTopPosX)/2, (mLeftTopPosY+mLeftBottomPosY)/2,10,paint2);
 			}
 			//canvas.restore();
 		}
