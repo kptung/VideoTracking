@@ -62,8 +62,10 @@ public:
 			resize(im_gray, im_gray, Size(cvRound(source.cols / ratio), cvRound(source.rows / ratio)));
 			cv::Point2f initTopLeft(roi.x, roi.y);
 			cv::Point2f initBottomDown(roi.x + roi.width - 1, roi.y + roi.height - 1);
+			CMT cmt;
 			cmt.initialise(im_gray, initTopLeft, initBottomDown);
 			cmt.processFrame(im_gray);
+			m_tracker.insert(std::make_pair(obj_id, cmt));
 		}
 		return obj_id;
 	}
@@ -91,6 +93,7 @@ public:
 
 		auto itr = m_active_objects.begin();
 		for (; itr != m_active_objects.end(); ++itr) {
+			CMT cmt = m_tracker.at(itr->first);
 			cmt.processFrame(im_gray);
 			int width = cmt.topRight.x - cmt.topLeft.x + 1;
 			int height = cmt.bottomLeft.y - cmt.topLeft.y + 1;
@@ -100,7 +103,12 @@ public:
 			match.y *= ratio;
 			match.width *= ratio;
 			match.height *= ratio;
+			//bool tracked = (match.x < 0 || match.x >= target.cols || match.y < 0 || match.y >= target.cols || match.width<0 || match.width>target.cols || match.height<0 || match.height>target.rows) ? false : true;
+			//if (tracked)
+			//{
 			objects.insert(std::make_pair(itr->first, match));
+			m_tracker.at(itr->first) = cmt;
+			//}
 		}
 		
 
@@ -111,7 +119,8 @@ public:
 
 private:
 	//////////////////////////////////////////////////////////////////////////
-	CMT cmt;
+	//CMT cmt;
+	std::map<int, CMT> m_tracker;
 	//////////////////////////////////////////////////////////////////////////
 	cv::Point frame_size = cv::Point(320, 240);
 	double ratio;
