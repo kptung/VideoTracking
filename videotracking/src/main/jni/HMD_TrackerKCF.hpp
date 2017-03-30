@@ -286,6 +286,9 @@ private:
 			if (rt_parent) {
 				for (int j = 0; j < parent_tracker_offset.at(keyset_parent.at(i)).size(); j++) {
 					Point offset;
+					if (j >= keyset_tracker.size()) {
+						break;
+					}
 					if (parent_tracker_offset.at(keyset_parent.at(i)).count(keyset_tracker.at(j)) == 0)continue;
 					offset = parent_tracker_offset.at(keyset_parent.at(i)).at(keyset_tracker.at(j));
 					Rect2d roi_target = m_active_roi_target.at(keyset_tracker.at(j));
