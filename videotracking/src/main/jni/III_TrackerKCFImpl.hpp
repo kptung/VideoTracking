@@ -23,26 +23,133 @@
   |---------------------------*/
 namespace cv {
 
+#define HISTTHRES 2
+
 	double compareHistRGB(Mat template_image1, Mat template_image2) {
 		MatND hist1, hist2;
-		if (template_image1.cols == 0 || template_image1.rows == 0 ||
-			template_image2.cols == 0 || template_image2.rows == 0) {
+		MatND histy1, histy2;
+		MatND histu1, histu2;
+		MatND histv1, histv2;
+		double res;
+		if (template_image1.cols <= 0 || template_image1.rows <= 0 ||
+			template_image2.cols <= 0 || template_image2.rows <= 0) {
 			return 65535;
 		}
-		Mat arrays1[] = { template_image1 };
-		Mat arrays2[] = { template_image2 };
+
+		Mat yuvimg1, yuvimg2;
+		cv::cvtColor(template_image1, yuvimg1, CV_BGR2YUV);
+		cv::cvtColor(template_image2, yuvimg2, CV_BGR2YUV);
+		Mat arrays1[] = { yuvimg1 };
+		Mat arrays2[] = { yuvimg2 };
 		int channels[] = { 0, 1, 2 };
+		int channel1[] = { 0 };
+		int channel2[] = { 1 };
+		int channel3[] = { 2 };
 		//hist bins in 3 dimensions
 		int histSize[] = { 32,32,32 };
 		float sranges[] = { 0, 256 };
 		const float* ranges[] = { sranges, sranges, sranges };
-		calcHist(arrays1, 1, channels, Mat(), hist1, 3, histSize, ranges, true, false);
+		const float* onechan_ranges[] = { sranges };
+		/*calcHist(arrays1, 1, channels, Mat(), hist1, 3, histSize, ranges, true, false);
 		calcHist(arrays2, 1, channels, Mat(), hist2, 3, histSize, ranges, true, false);
-		double res = compareHist(hist1, hist2, CV_COMP_CHISQR);
-		res = res / 32 / 32 / 32;
-		if (res >= 1.1) {
-			printf("result = %f\n", res);
+		res = compareHist(hist1, hist2, CV_COMP_BHATTACHARYYA);
+		*/
+		calcHist(arrays1, 1, channel1, Mat(), histy1, 1, histSize, onechan_ranges, true, false);
+		calcHist(arrays2, 1, channel1, Mat(), histy2, 1, histSize, onechan_ranges, true, false);
+		double resy = compareHist(histy1, histy2, CV_COMP_BHATTACHARYYA);
+		calcHist(arrays1, 1, channel2, Mat(), histu1, 1, histSize, onechan_ranges, true, false);
+		calcHist(arrays2, 1, channel2, Mat(), histu2, 1, histSize, onechan_ranges, true, false);
+		double resu = compareHist(histu1, histu2, CV_COMP_BHATTACHARYYA);
+		calcHist(arrays1, 1, channel3, Mat(), histv1, 1, histSize, onechan_ranges, true, false);
+		calcHist(arrays2, 1, channel3, Mat(), histv2, 1, histSize, onechan_ranges, true, false);
+		double resv = compareHist(histv1, histv2, CV_COMP_BHATTACHARYYA);
+
+		//res = res / 32 / 32 / 32;
+		res = resy + resu*2 + resv*2;
+		Mat gaussian1 = template_image1.clone();
+		Mat gaussian2 = template_image2.clone();
+		Mat gray1, gray2;
+		Mat edge1, edge2;
+		GaussianBlur(template_image1, gaussian1, Size(3, 3), 0, 0, BORDER_DEFAULT);
+		cvtColor(gaussian1, gray1, CV_BGR2GRAY);
+		Laplacian(gray1, edge1, gray1.depth(), 3/*kernel size*/, 1, 0, BORDER_DEFAULT);
+		GaussianBlur(template_image2, gaussian2, Size(3, 3), 0, 0, BORDER_DEFAULT);
+		cvtColor(gaussian2, gray2, CV_BGR2GRAY);
+		Laplacian(gray2, edge2, gray2.depth(), 3/*kernel size*/, 1, 0, BORDER_DEFAULT);
+		edge1.convertTo(edge1, CV_32F);
+		edge2.convertTo(edge2, CV_32F);
+		threshold(edge1, edge1, 15, 255, THRESH_BINARY);
+		threshold(edge2, edge2, 15, 255, THRESH_BINARY);
+		
+		Mat sum_of_col_vec1 = Mat(1, edge1.cols, CV_32F), sum_of_col_vec2 = Mat(1, edge2.cols, CV_32F);
+		Mat sum_of_row_vec1 = Mat(edge1.rows, 1, CV_32F), sum_of_row_vec2 = Mat(edge2.rows, 1, CV_32F);
+		int sum1, sum2;
+		for (int i = 0; i < edge1.cols;i++) {
+			sum1 = 0;
+			sum2 = 0;
+			for (int j = 0; j < edge1.rows;j++) {
+				sum1 += edge1.at<float>(j, i);
+				sum2 += edge2.at<float>(j, i);
+			}
+			sum_of_col_vec1.at<float>(0, i) = sum1/ edge1.cols;
+			sum_of_col_vec2.at<float>(0, i) = sum2/ edge1.cols;
 		}
+
+		for (int i = 0; i < edge1.rows; i++) {
+			sum1 = 0;
+			sum2 = 0;
+			for (int j = 0; j < edge1.cols; j++) {
+				sum1 += edge1.at<float>(i, j);
+				sum2 += edge2.at<float>(i, j);
+			}
+			sum_of_row_vec1.at<float>(i, 0) = sum1/ edge1.rows;
+			sum_of_row_vec2.at<float>(i, 0) = sum2/ edge1.rows;
+		}
+		
+		Mat result_vertical_1, result_horizontal_1;
+		Mat result_vertical_2, result_horizontal_2;
+		Rect2d roi_horizontal_left = Rect2d(0, 0, 1, edge1.rows * 3 / 4);
+		Rect2d roi_horizontal_right = Rect2d(0, edge1.rows / 4, 1, edge1.rows * 3 / 4);
+		Rect2d roi_vertical_up = Rect2d(0, 0, edge1.cols * 3 / 4, 1);
+		Rect2d roi_vertical_bottom = Rect2d(edge1.cols / 4, 0, edge1.cols * 3 / 4, 1);
+		double max_vertical_1, max_vertical_2, max_horinoztal_1, max_horinoztal_2;
+		matchTemplate(sum_of_col_vec1, sum_of_col_vec2(roi_vertical_up), result_vertical_1, CV_TM_CCORR_NORMED);
+		minMaxLoc(result_vertical_1, 0, &max_vertical_1, 0 ,0);
+		matchTemplate(sum_of_col_vec1, sum_of_col_vec2(roi_vertical_bottom), result_vertical_2, CV_TM_CCORR_NORMED);
+		minMaxLoc(result_vertical_1, 0, &max_vertical_2, 0, 0);
+		matchTemplate(sum_of_row_vec1, sum_of_row_vec2(roi_horizontal_left), result_horizontal_1, CV_TM_CCORR_NORMED);
+		minMaxLoc(result_vertical_1, 0, &max_horinoztal_1, 0, 0);
+		matchTemplate(sum_of_row_vec1, sum_of_row_vec2(roi_horizontal_right), result_horizontal_2, CV_TM_CCORR_NORMED);
+		minMaxLoc(result_vertical_1, 0, &max_horinoztal_2, 0, 0);
+		double corr1, corr2;
+		if (max_vertical_1 > max_vertical_2) {
+			corr1 = max_vertical_1;
+		} else {
+			corr1 = max_vertical_2;
+		}
+
+		if (max_horinoztal_1 > max_horinoztal_2) {
+			corr2 = max_horinoztal_1;
+		}
+		else {
+			corr2 = max_horinoztal_2;
+		}
+
+		if ((corr1 + corr2 ) < 1.3) {
+			/*imshow("edge1", edge1);
+			imshow("edge2", edge2);
+			waitKey(0);*/
+			res = 65535;
+		}
+
+		if (res >= HISTTHRES) {
+			printf("result = %f\n", res);
+			//printf("norm_col = %f\n", norm_col);
+			//printf("norm_row = %f\n", norm_row);
+
+		}
+
+
 		return res;
 	}
 	/*
@@ -106,6 +213,7 @@ namespace cv {
 		void setFeatureExtractor(void(*f)(const Mat, const Rect, Mat&), bool pca_func = false);
 		bool init(const Mat& image, const Rect2d& boundingBox);
 		bool update(const Mat& image, Rect2d& boundingBox, bool override_roi);
+		double get_trust_point();
 		
 
 	protected:
@@ -199,6 +307,7 @@ namespace cv {
 		int roi_rate_y;
 		int frame;
 		int prev_max = -1;
+		double trust_point = 65535;
 	};
 
 	III_TrackerKCFImpl::III_TrackerKCFImpl(const Params &parameters):params(parameters)
@@ -435,6 +544,7 @@ namespace cv {
 		// check the channels of the input image, grayscale is preferred
 		CV_Assert(img.channels() == 1 || img.channels() == 3);
 		Rect2d roi2 = roi;
+		trust_point = 65535;
 		roi2.x = round(roi.x);
 		roi2.y = round(roi.y);
 		roi2.width = round(roi.width);
@@ -541,7 +651,7 @@ namespace cv {
 			else if (maxVal < (prev_max*0.8)) {
 				//if (override_roi) {
 				if (!params.is_parent) {
-					printf("tracker_lost");
+					printf("tracker_lost\n");
 					return false;
 				}
 				//}
@@ -550,11 +660,11 @@ namespace cv {
 			else {
 				if (override_roi && (maxVal < (prev_max*0.9))) {
 					if (!params.is_parent) {
-						printf("tracker_lost");
+						printf("tracker_lost\n");
 						return false;
 					}
 				}
-				prev_max = maxVal;
+				//prev_max = maxVal;
 
 			}
 			/*
@@ -598,7 +708,7 @@ namespace cv {
 			double offsety = (maxLoc.y * (double)roi.height / (double)response.rows - roi.height / 2 + 1);
 			temproi.x = roi.x + offsetx;
 			temproi.y = roi.y + offsety;
-			if ((temproi.x + roi.width / 4) < 0 || (temproi.y + roi.height / 4) < 0 ||
+			if ((temproi.x + roi.width * 3 / 4) < 0 || (temproi.y + roi.height * 3 / 4) < 0 ||
 				(temproi.x + roi.width / 4) > img.cols || (temproi.y + roi.height / 4) > img.rows) {
 				return false;
 			}
@@ -638,23 +748,25 @@ namespace cv {
 			templateBoundingBox.y = 0;
 			if ((templateBoundingBox.x + templateBoundingBox.width) > (template_image.cols - 1))templateBoundingBox.width = template_image.cols - 1 - templateBoundingBox.x;
 			if ((templateBoundingBox.y + templateBoundingBox.height) > (template_image.rows - 1))templateBoundingBox.height = template_image.rows - 1 - templateBoundingBox.y;
+			resizeBoundingBox.width = templateBoundingBox.width;
+			resizeBoundingBox.height = templateBoundingBox.height;
 
-			if (resizeBoundingBox.width <= 0 || resizeBoundingBox.height <= 0) {
+			if (resizeBoundingBox.width <= 4 || resizeBoundingBox.height <= 4) {
 				roi = prevroi;
 				boundingBox = prevBoundingbox;
 				if (!params.is_parent) {
-					printf("tracker_lost");
+					printf("tracker_lost\n");
 				}
 				return false;
 			}
 
-			if (compareHistRGB(img(resizeBoundingBox).clone(), template_image(templateBoundingBox).clone()) > 1.1) {//rollback
+			if ((trust_point = compareHistRGB(template_image(templateBoundingBox).clone(), img(resizeBoundingBox).clone())) > HISTTHRES) {//rollback
 				roi = prevroi;
 				boundingBox = prevBoundingbox;
 				//imshow("", img(resizeBoundingBox));
 				//waitKey(0);
 				if (!params.is_parent) {
-					printf("tracker_lost");
+					printf("tracker_lost\n");
 				}
 				return false;
 			}
@@ -763,7 +875,9 @@ namespace cv {
 		return true;
 	}
 
-
+	double III_TrackerKCFImpl::get_trust_point() {
+		return trust_point;
+	}
 	/*-------------------------------------
 	|  implementation of the KCF functions
 	|-------------------------------------*/
@@ -1252,7 +1366,7 @@ namespace cv {
 		max_patch_size = 10 * 10;
 		split_coeff = true;
 		wrap_kernel = false;
-		desc_npca = LOG;
+		desc_npca = GRAY;
 		desc_pca = CN;
 		is_parent = false;
 		//feature compression
