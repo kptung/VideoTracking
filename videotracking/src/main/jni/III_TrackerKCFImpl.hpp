@@ -23,22 +23,151 @@
   |---------------------------*/
 namespace cv {
 
-#define HISTTHRES 2
+#define HISTTHRES 3
 
 	double compareHistRGB(Mat template_image1, Mat template_image2) {
+		double res;
+		if (template_image1.cols <= 0 || template_image1.rows <= 0 ||
+			template_image2.cols <= 0 || template_image2.rows <= 0) {
+			return 0;
+		}
+
+		Mat gaussian1 = template_image1.clone();
+		Mat gaussian2 = template_image2.clone();
+		Mat gray1, gray2;
+		Mat edge1, edge2;
+		GaussianBlur(template_image1, gaussian1, Size(3, 3), 0, 0, BORDER_DEFAULT);
+		cvtColor(gaussian1, gray1, CV_BGR2GRAY);
+		Laplacian(gray1, edge1, gray1.depth(), 3/*kernel size*/, 1, 0, BORDER_DEFAULT);
+		GaussianBlur(template_image2, gaussian2, Size(3, 3), 0, 0, BORDER_DEFAULT);
+		cvtColor(gaussian2, gray2, CV_BGR2GRAY);
+		Laplacian(gray2, edge2, gray2.depth(), 3/*kernel size*/, 1, 0, BORDER_DEFAULT);
+		edge1.convertTo(edge1, CV_32F);
+		edge2.convertTo(edge2, CV_32F);
+		threshold(edge1, edge1, 15, 255, THRESH_BINARY);
+		threshold(edge2, edge2, 15, 255, THRESH_BINARY);
+
+		Mat sum_of_col_vec1 = Mat(1, edge1.cols, CV_32F), sum_of_col_vec2 = Mat(1, edge2.cols, CV_32F);
+		Mat sum_of_row_vec1 = Mat(edge1.rows, 1, CV_32F), sum_of_row_vec2 = Mat(edge2.rows, 1, CV_32F);
+		int sum1, sum2;
+		for (int i = 0; i < edge1.cols; i++) {
+			sum1 = 0;
+			sum2 = 0;
+			for (int j = 0; j < edge1.rows; j++) {
+				sum1 += edge1.at<float>(j, i);
+				sum2 += edge2.at<float>(j, i);
+			}
+			sum_of_col_vec1.at<float>(0, i) = sum1 / edge1.cols;
+			sum_of_col_vec2.at<float>(0, i) = sum2 / edge1.cols;
+		}
+
+		for (int i = 0; i < edge1.rows; i++) {
+			sum1 = 0;
+			sum2 = 0;
+			for (int j = 0; j < edge1.cols; j++) {
+				sum1 += edge1.at<float>(i, j);
+				sum2 += edge2.at<float>(i, j);
+			}
+			sum_of_row_vec1.at<float>(i, 0) = sum1 / edge1.rows;
+			sum_of_row_vec2.at<float>(i, 0) = sum2 / edge1.rows;
+		}
+
+		Mat result_vertical_1, result_horizontal_1;
+		Mat result_vertical_2, result_horizontal_2;
+		Rect2d roi_horizontal_left = Rect2d(0, 0, 1, edge1.rows * 2 / 3);
+		Rect2d roi_horizontal_right = Rect2d(0, edge1.rows / 3, 1, edge1.rows * 2 / 3);
+		Rect2d roi_vertical_up = Rect2d(0, 0, edge1.cols * 2 / 3, 1);
+		Rect2d roi_vertical_bottom = Rect2d(edge1.cols / 3, 0, edge1.cols * 2 / 3, 1);
+		Rect2d calc_hist_template_roi;
+		Rect2d calc_hist_semple_roi;
+		Point maxLoc_vertical_1;
+		Point maxLoc_vertical_2;
+		Point maxLoc_horizontal_1;
+		Point maxLoc_horizontal_2;
+		int template_center_x;
+		int template_center_y;
+		int sample_x;
+		int sample_y;
+		double max_vertical_1, max_vertical_2, max_horinoztal_1, max_horinoztal_2;
+		matchTemplate(sum_of_col_vec1, sum_of_col_vec2(roi_vertical_up), result_vertical_1, CV_TM_CCORR_NORMED);
+		minMaxLoc(result_vertical_1, 0, &max_vertical_1, 0, &maxLoc_vertical_1);
+		matchTemplate(sum_of_col_vec1, sum_of_col_vec2(roi_vertical_bottom), result_vertical_2, CV_TM_CCORR_NORMED);
+		minMaxLoc(result_vertical_2, 0, &max_vertical_2, 0, &maxLoc_vertical_2);
+		matchTemplate(sum_of_row_vec1, sum_of_row_vec2(roi_horizontal_left), result_horizontal_1, CV_TM_CCORR_NORMED);
+		minMaxLoc(result_horizontal_1, 0, &max_horinoztal_1, 0, &maxLoc_horizontal_1);
+		matchTemplate(sum_of_row_vec1, sum_of_row_vec2(roi_horizontal_right), result_horizontal_2, CV_TM_CCORR_NORMED);
+		minMaxLoc(result_horizontal_2, 0, &max_horinoztal_2, 0, &maxLoc_horizontal_2);
+		double corr1, corr2;
+		if (max_vertical_1 > max_vertical_2) {
+			corr1 = max_vertical_1;
+			template_center_x = maxLoc_vertical_1.x;
+			sample_x = 0;
+		}
+		else {
+			corr1 = max_vertical_2;
+			template_center_x = maxLoc_vertical_2.x;
+			sample_x = edge1.cols / 3;
+		}
+
+		if (max_horinoztal_1 > max_horinoztal_2) {
+			corr2 = max_horinoztal_1;
+			template_center_y = maxLoc_horizontal_1.y;
+			sample_y = 0;
+		}
+		else {
+			corr2 = max_horinoztal_2;
+			template_center_y = maxLoc_horizontal_2.y;
+			sample_y = edge1.rows / 3;
+		}
+
+		if ((corr1 + corr2) < 1.7) {
+			return 0;
+		}
+
+		calc_hist_semple_roi = Rect2d(sample_x, sample_y, edge1.cols * 2 / 3, edge1.rows * 2 / 3);
+		calc_hist_template_roi = Rect2d(template_center_x , template_center_y, edge1.cols * 2 / 3, edge1.rows * 2 / 3);
+		if(calc_hist_template_roi.x < 0 ||
+			calc_hist_template_roi.y < 0 ||
+			calc_hist_template_roi.width <= 0 ||
+			calc_hist_template_roi.height <= 0 ||
+			calc_hist_template_roi.x+ calc_hist_template_roi.width > template_image1.size().width ||
+			calc_hist_template_roi.y + calc_hist_template_roi.height > template_image1.size().height){
+			printf("invalidroi");
+}
+
+		cv::Scalar scalar = mean(template_image1(calc_hist_template_roi) - template_image2(calc_hist_semple_roi));
+		if (scalar.val[0] > 30 || scalar.val[1] > 20 || scalar.val[2] > 20) {
+			//printf("Not similar");
+			//imshow("img1", template_image1(calc_hist_template_roi));
+			//imshow("img2", template_image2(calc_hist_semple_roi));
+			//waitKey(0);
+			return 0;
+		}
+
+		Mat template1 = scalar.val[0] * Mat::ones(template_image1(calc_hist_template_roi).rows, template_image1(calc_hist_template_roi).cols, CV_8UC1);
+		Mat template2 = scalar.val[0] * Mat::ones(template_image2(calc_hist_semple_roi).rows, template_image2(calc_hist_semple_roi).cols, CV_8UC1);
+		Mat c1[4], c2[4];
+		Mat result1, result2;
+		split(template_image1(calc_hist_template_roi),c1);
+		split(template_image2(calc_hist_semple_roi), c2);
+		absdiff(template1, c1[0], result1);
+		absdiff(template2, c2[0], result2);
+		cv::Scalar scalar2 = mean(result1 - result2);
+		if (scalar2.val[0] > 30) {
+			//printf("Not similar");
+			//imshow("img1", template_image1(calc_hist_template_roi));
+			//imshow("img2", template_image2(calc_hist_semple_roi));
+			//waitKey(0);
+			return 0;
+		}
+
 		MatND hist1, hist2;
 		MatND histy1, histy2;
 		MatND histu1, histu2;
 		MatND histv1, histv2;
-		double res;
-		if (template_image1.cols <= 0 || template_image1.rows <= 0 ||
-			template_image2.cols <= 0 || template_image2.rows <= 0) {
-			return 65535;
-		}
-
 		Mat yuvimg1, yuvimg2;
-		cv::cvtColor(template_image1, yuvimg1, CV_BGR2YUV);
-		cv::cvtColor(template_image2, yuvimg2, CV_BGR2YUV);
+		cv::cvtColor(template_image1(calc_hist_template_roi), yuvimg1, CV_BGR2YUV);
+		cv::cvtColor(template_image2(calc_hist_semple_roi), yuvimg2, CV_BGR2YUV);
 		Mat arrays1[] = { yuvimg1 };
 		Mat arrays2[] = { yuvimg2 };
 		int channels[] = { 0, 1, 2 };
@@ -54,95 +183,33 @@ namespace cv {
 		calcHist(arrays2, 1, channels, Mat(), hist2, 3, histSize, ranges, true, false);
 		res = compareHist(hist1, hist2, CV_COMP_BHATTACHARYYA);
 		*/
+
+		Mat resulty;
+		Mat resultu;
+		Mat resultv;
 		calcHist(arrays1, 1, channel1, Mat(), histy1, 1, histSize, onechan_ranges, true, false);
 		calcHist(arrays2, 1, channel1, Mat(), histy2, 1, histSize, onechan_ranges, true, false);
-		double resy = compareHist(histy1, histy2, CV_COMP_BHATTACHARYYA);
+		//Laplacian(histy1, histy1, histy1.depth);
+		//Laplacian(histy2, histy2, histy2.depth);
+		//double resy = compareHist(histy1, histy2, CV_COMP_HELLINGER);
+		matchTemplate(histy1, histy2, resulty, CV_TM_CCORR_NORMED);
 		calcHist(arrays1, 1, channel2, Mat(), histu1, 1, histSize, onechan_ranges, true, false);
 		calcHist(arrays2, 1, channel2, Mat(), histu2, 1, histSize, onechan_ranges, true, false);
-		double resu = compareHist(histu1, histu2, CV_COMP_BHATTACHARYYA);
+		//Laplacian(histu1, histu1, histu1.depth);
+		//Laplacian(histu2, histu2, histu2.depth);
+		//double resu = compareHist(histu1, histu2, CV_COMP_HELLINGER);
+		matchTemplate(histu1, histu2, resultu, CV_TM_CCORR_NORMED);
 		calcHist(arrays1, 1, channel3, Mat(), histv1, 1, histSize, onechan_ranges, true, false);
 		calcHist(arrays2, 1, channel3, Mat(), histv2, 1, histSize, onechan_ranges, true, false);
-		double resv = compareHist(histv1, histv2, CV_COMP_BHATTACHARYYA);
-
-		//res = res / 32 / 32 / 32;
-		res = resy + resu*2 + resv*2;
-		Mat gaussian1 = template_image1.clone();
-		Mat gaussian2 = template_image2.clone();
-		Mat gray1, gray2;
-		Mat edge1, edge2;
-		GaussianBlur(template_image1, gaussian1, Size(3, 3), 0, 0, BORDER_DEFAULT);
-		cvtColor(gaussian1, gray1, CV_BGR2GRAY);
-		Laplacian(gray1, edge1, gray1.depth(), 3/*kernel size*/, 1, 0, BORDER_DEFAULT);
-		GaussianBlur(template_image2, gaussian2, Size(3, 3), 0, 0, BORDER_DEFAULT);
-		cvtColor(gaussian2, gray2, CV_BGR2GRAY);
-		Laplacian(gray2, edge2, gray2.depth(), 3/*kernel size*/, 1, 0, BORDER_DEFAULT);
-		edge1.convertTo(edge1, CV_32F);
-		edge2.convertTo(edge2, CV_32F);
-		threshold(edge1, edge1, 15, 255, THRESH_BINARY);
-		threshold(edge2, edge2, 15, 255, THRESH_BINARY);
+		//Laplacian(histv1, histv1, histv1.depth);
+		//Laplacian(histv2, histv2, histv2.depth);
+		//double resv = compareHist(histv1, histv2, CV_COMP_HELLINGER);
+		matchTemplate(histv1, histv2, resultv, CV_TM_CCORR_NORMED);
+		//res = res / 32 ;
+		res = resulty.at<float>(0,0) + resultu.at<float>(0,0)*2 + resultv.at<float>(0,0)*2;
 		
-		Mat sum_of_col_vec1 = Mat(1, edge1.cols, CV_32F), sum_of_col_vec2 = Mat(1, edge2.cols, CV_32F);
-		Mat sum_of_row_vec1 = Mat(edge1.rows, 1, CV_32F), sum_of_row_vec2 = Mat(edge2.rows, 1, CV_32F);
-		int sum1, sum2;
-		for (int i = 0; i < edge1.cols;i++) {
-			sum1 = 0;
-			sum2 = 0;
-			for (int j = 0; j < edge1.rows;j++) {
-				sum1 += edge1.at<float>(j, i);
-				sum2 += edge2.at<float>(j, i);
-			}
-			sum_of_col_vec1.at<float>(0, i) = sum1/ edge1.cols;
-			sum_of_col_vec2.at<float>(0, i) = sum2/ edge1.cols;
-		}
 
-		for (int i = 0; i < edge1.rows; i++) {
-			sum1 = 0;
-			sum2 = 0;
-			for (int j = 0; j < edge1.cols; j++) {
-				sum1 += edge1.at<float>(i, j);
-				sum2 += edge2.at<float>(i, j);
-			}
-			sum_of_row_vec1.at<float>(i, 0) = sum1/ edge1.rows;
-			sum_of_row_vec2.at<float>(i, 0) = sum2/ edge1.rows;
-		}
-		
-		Mat result_vertical_1, result_horizontal_1;
-		Mat result_vertical_2, result_horizontal_2;
-		Rect2d roi_horizontal_left = Rect2d(0, 0, 1, edge1.rows * 3 / 4);
-		Rect2d roi_horizontal_right = Rect2d(0, edge1.rows / 4, 1, edge1.rows * 3 / 4);
-		Rect2d roi_vertical_up = Rect2d(0, 0, edge1.cols * 3 / 4, 1);
-		Rect2d roi_vertical_bottom = Rect2d(edge1.cols / 4, 0, edge1.cols * 3 / 4, 1);
-		double max_vertical_1, max_vertical_2, max_horinoztal_1, max_horinoztal_2;
-		matchTemplate(sum_of_col_vec1, sum_of_col_vec2(roi_vertical_up), result_vertical_1, CV_TM_CCORR_NORMED);
-		minMaxLoc(result_vertical_1, 0, &max_vertical_1, 0 ,0);
-		matchTemplate(sum_of_col_vec1, sum_of_col_vec2(roi_vertical_bottom), result_vertical_2, CV_TM_CCORR_NORMED);
-		minMaxLoc(result_vertical_1, 0, &max_vertical_2, 0, 0);
-		matchTemplate(sum_of_row_vec1, sum_of_row_vec2(roi_horizontal_left), result_horizontal_1, CV_TM_CCORR_NORMED);
-		minMaxLoc(result_vertical_1, 0, &max_horinoztal_1, 0, 0);
-		matchTemplate(sum_of_row_vec1, sum_of_row_vec2(roi_horizontal_right), result_horizontal_2, CV_TM_CCORR_NORMED);
-		minMaxLoc(result_vertical_1, 0, &max_horinoztal_2, 0, 0);
-		double corr1, corr2;
-		if (max_vertical_1 > max_vertical_2) {
-			corr1 = max_vertical_1;
-		} else {
-			corr1 = max_vertical_2;
-		}
-
-		if (max_horinoztal_1 > max_horinoztal_2) {
-			corr2 = max_horinoztal_1;
-		}
-		else {
-			corr2 = max_horinoztal_2;
-		}
-
-		if ((corr1 + corr2 ) < 1.3) {
-			/*imshow("edge1", edge1);
-			imshow("edge2", edge2);
-			waitKey(0);*/
-			res = 65535;
-		}
-
-		if (res >= HISTTHRES) {
+		if (res < HISTTHRES) {
 			printf("result = %f\n", res);
 			//printf("norm_col = %f\n", norm_col);
 			//printf("norm_row = %f\n", norm_row);
@@ -441,99 +508,7 @@ namespace cv {
 		return true;
 	}
 
-	bool III_TrackerKCFImpl::search_matching(const Mat& image, Rect2d& boundingBox) {
-		double minVal, maxVal;	// min-max response
-		Point minLoc, maxLoc;	// min-max location
-		Mat testxx, testzz;
-		Mat img = image.clone();
-		// check the channels of the input image, grayscale is preferred
-		CV_Assert(img.channels() == 1 || img.channels() == 3);
-		Rect2d roi2 = roi;
-		roi2.x = round(roi.x);
-		roi2.y = round(roi.y);
-		roi2.width = round(roi.width);
-		roi2.height = round(roi.height);
-
-		// resize the image whenever needed
-		if (resizeImage)resize(img.clone(), img, Size(img.cols / imageResizeFactor, img.rows / imageResizeFactor));
-		
-		roi2.x = floor(boundingBox.x / imageResizeFactor);
-		roi2.y = floor(boundingBox.y / imageResizeFactor);
-		roi2.x -= (roi_rate_x - 1) * roi2.width / roi_rate_x / 2;
-		roi2.y -= (roi_rate_y - 1) * roi2.height / roi_rate_y / 2;
-
-		// detection part
-		if (frame > 0) {
-
-			// extract and pre-process the patch
-			// get non compressed descriptors
-			for (unsigned i = 0; i < descriptors_npca.size() - extractor_npca.size(); i++) {
-				if (!getSubWindow(img, roi, features_npca[i], img_Patch, descriptors_npca[i]))return false;
-			}
-			//get non-compressed custom descriptors
-			for (unsigned i = 0, j = (unsigned)(descriptors_npca.size() - extractor_npca.size()); i < extractor_npca.size(); i++, j++) {
-				if (!getSubWindow(img, roi, features_npca[j], extractor_npca[i]))return false;
-			}
-			if (features_npca.size() > 0)merge(features_npca, X[1]);
-
-			// get compressed descriptors
-			for (unsigned i = 0; i < descriptors_pca.size() - extractor_pca.size(); i++) {
-				if (!getSubWindow(img, roi, features_pca[i], img_Patch, descriptors_pca[i]))return false;
-			}
-			//get compressed custom descriptors
-			for (unsigned i = 0, j = (unsigned)(descriptors_pca.size() - extractor_pca.size()); i < extractor_pca.size(); i++, j++) {
-				if (!getSubWindow(img, roi, features_pca[j], extractor_pca[i]))return false;
-			}
-			if (features_pca.size() > 0)merge(features_pca, X[0]);
-
-			//compress the features and the KRSL model
-			if (params.desc_pca != 0) {
-				compress(proj_mtx, X[0], X[0], data_temp, compress_data);
-				compress(proj_mtx, Z[0], Zc[0], data_temp, compress_data);
-			}
-
-			// copy the compressed KRLS model
-			Zc[1] = Z[1];
-
-			// merge all features
-			if (features_npca.size() == 0) {
-				testxx = X[0];
-				testzz = Zc[0];
-			}
-			else if (features_pca.size() == 0) {
-				testxx = X[1];
-				testzz = Z[1];
-			}
-			else {
-				merge(X, 2, testxx);
-				merge(Zc, 2, testzz);
-			}
-
-			//compute the gaussian kernel
-			denseGaussKernel(params.sigma, testxx, testzz, k, layers, vxf, vyf, vxyf, xy_data, xyf_data);
-			/*
-			imshow("dGK", k);
-			waitKey(0);
-			cvDestroyAllWindows();*/
-			// compute the fourier transform of the kernel
-			fft2(k, kf);
-			if (frame == 1)spec2 = Mat_<Vec2d >(kf.rows, kf.cols);
-
-			// calculate filter response
-			if (params.split_coeff)
-				calcResponse(alphaf, alphaf_den, kf, response, spec, spec2);
-			else
-				calcResponse(alphaf, kf, response, spec);
-
-			/*imshow("response", response);
-			waitKey(0);
-			cvDestroyAllWindows();*/
-			// extract the maximum response
-			minMaxLoc(response, &minVal, &maxVal, &minLoc, &maxLoc);
-		}
-		return false;
-	}
-
+	
 	/*
 	* Main part of the KCF algorithm
 	*/
@@ -726,8 +701,8 @@ namespace cv {
 			//imshow("result", img(roi));
 			//waitKey(0);
 			// update the bounding box
-			int temp_x = (resizeImage ? ceil(roi.x) * imageResizeFactor : roi.x) + (roi_rate_x - 1)*boundingBox.width / 2;
-			int temp_y = (resizeImage ? ceil(roi.y) * imageResizeFactor : roi.y) + (roi_rate_y - 1)*boundingBox.height / 2;
+			int temp_x = (resizeImage ? round(roi.x) * imageResizeFactor : roi.x) + (roi_rate_x - 1)*boundingBox.width / 2;
+			int temp_y = (resizeImage ? round(roi.y) * imageResizeFactor : roi.y) + (roi_rate_y - 1)*boundingBox.height / 2;
 			prevBoundingbox = boundingBox;
 			boundingBox.x = temp_x;
 			boundingBox.y = temp_y;
@@ -760,7 +735,7 @@ namespace cv {
 				return false;
 			}
 
-			if ((trust_point = compareHistRGB(template_image(templateBoundingBox).clone(), img(resizeBoundingBox).clone())) > HISTTHRES) {//rollback
+			if ((trust_point = compareHistRGB(template_image(templateBoundingBox).clone(), img(resizeBoundingBox).clone())) < HISTTHRES) {//rollback
 				roi = prevroi;
 				boundingBox = prevBoundingbox;
 				//imshow("", img(resizeBoundingBox));

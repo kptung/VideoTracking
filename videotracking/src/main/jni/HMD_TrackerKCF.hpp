@@ -61,7 +61,7 @@ public:
 				for (int i = 1; i < 10; i++) {
 					parent_associate.at(obj_id).insert(std::make_pair(i, false));
 				}
-				tracker_trust_point.insert(std::make_pair(obj_id, 65535));
+				tracker_trust_point.insert(std::make_pair(obj_id, 0));
 			} else {
 				obj_id = -1;
 			}
@@ -92,7 +92,7 @@ public:
 				double trust = tracker->get_trust_point();
 				tracker_trust_point.erase(itr_object->first);
 				tracker_trust_point.insert(std::make_pair(itr_object->first, trust));
-				if (trust < 1) {
+				if (trust > 4.5) {
 					add_flag = true;
 					printf("trust = %f\n", trust);
 				}
@@ -222,7 +222,7 @@ private:
 			if (area_y < 0 || area_y>2)continue;
 			area = area_y * 3 + area_x + 1;
 			if (parent_associate.at(keyset.at(i)).at(area))continue;
-			if (tracker_trust_point.at(keyset.at(i)) > 1)continue;
+			if (tracker_trust_point.at(keyset.at(i)) < 3)continue;
 			if (calcActivatedParent() > 5)continue;
 			parent_associate.at(keyset.at(i)).erase(area);
 			parent_associate.at(keyset.at(i)).insert(std::make_pair(area, true));
