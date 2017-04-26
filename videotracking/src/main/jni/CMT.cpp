@@ -96,8 +96,8 @@ CMT::CMT()
     descriptorType = "Feature2D.BRISK";
     matcherType = "BruteForce-Hamming";
     thrOutlier = 20;
-    thrConf = 0.75;
-    thrRatio = 0.8;
+    thrConf = 0.9;
+    thrRatio = 0.9;
     descriptorLength = 512;
     estimateScale = true;
     estimateRotation = true;
