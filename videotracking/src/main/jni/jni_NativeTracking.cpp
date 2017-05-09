@@ -19,7 +19,7 @@
 #define LOG_TAG "JNI_NativeTracking"
 #define LOGD(...) ((void)__android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__))
 
-#define JNI_DBG 1
+#define JNI_DBG 0
 #define VIDEO_TRACKING_LIB_VERSION 0.03
 #define MIN_RECT_VALUE 14
 
