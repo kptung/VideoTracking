@@ -20,8 +20,24 @@ JNIEXPORT jlong JNICALL Java_org_iii_snsi_videotracking_NativeTracking_createHan
  * Method:    initTrackingObjects
  * Signature: (J[BII[I)[I
  */
+JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_initTrackingObjectsJPG
+  (JNIEnv *, jobject, jlong, jbyteArray, jint, jintArray);
+
+/*
+ * Class:     org_iii_snsi_videotracking_NativeTracking
+ * Method:    initTrackingObjects
+ * Signature: (J[BII[I)[I
+ */
 JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_initTrackingObjects
   (JNIEnv *, jobject, jlong, jbyteArray, jint, jint, jintArray);
+
+/*
+ * Class:     org_iii_snsi_videotracking_NativeTracking
+ * Method:    addTrackingObjectsRGB
+ * Signature: (J[B[I)[I
+ */
+JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_addTrackingObjectsJPG
+  (JNIEnv *, jobject, jlong, jbyteArray, jint, jintArray);
 
 /*
  * Class:     org_iii_snsi_videotracking_NativeTracking

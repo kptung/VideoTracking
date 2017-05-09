@@ -56,6 +56,27 @@ public class NativeTracking {
 	}
 
 	/**
+	 * Processing Camshit to track rectangles
+	 *
+	 * @param image The ARGB image.
+	 * @param rect The integer array that indecate retangle.
+	 * @return A postive rectangle id, return -1 if error occurred.
+	 */
+	public int[] addTrackingObjectsJPG(byte[] image, int size,
+			int[] rect) {
+
+		if (firstRun) {
+			int[] result = initTrackingObjectsJPG(handle, image, size, rect);
+			if(result != null) {
+				firstRun = false;
+			}
+			return result;
+		}
+
+		return addTrackingObjectsJPG(handle, image, size, rect);
+	}
+
+	/**
 	 * The function to release rectangle object
 	 *
 	 * @param ids The rectangle id that is returned by initTracking.
@@ -95,8 +116,14 @@ public class NativeTracking {
 	private native synchronized int[] initTrackingObjects(long handle,
 			byte[] image, int width, int height, int[] rects);
 
+	private native synchronized int[] initTrackingObjectsJPG(long handle,
+			byte[] image, int size, int[] rects);
+
 	private native synchronized int[] addTrackingObjects(long handle,
 			byte[] image, int[] rects);
+
+	private native synchronized int[] addTrackingObjectsJPG(long handle,
+			byte[] image, int size, int[] rects);
 
 	private native synchronized boolean removeTrackingObjects(long handle,
 			int[] ids);
