@@ -6,8 +6,8 @@ public class NativeTracking {
 		System.loadLibrary("videotracking");
 	}
 
-	private long handle;
-	private boolean firstRun = true;
+	protected long handle;
+	protected boolean firstRun = true;
 
 	/**
 	 * Constructor
@@ -116,19 +116,19 @@ public class NativeTracking {
 	private native synchronized int[] initTrackingObjects(long handle,
 			byte[] image, int width, int height, int[] rects);
 
-	private native synchronized int[] initTrackingObjectsJPG(long handle,
+	protected native synchronized int[] initTrackingObjectsJPG(long handle,
 			byte[] image, int size, int[] rects);
 
 	private native synchronized int[] addTrackingObjects(long handle,
 			byte[] image, int[] rects);
 
-	private native synchronized int[] addTrackingObjectsJPG(long handle,
+	protected native synchronized int[] addTrackingObjectsJPG(long handle,
 			byte[] image, int size, int[] rects);
 
-	private native synchronized boolean removeTrackingObjects(long handle,
+	protected native synchronized boolean removeTrackingObjects(long handle,
 			int[] ids);
 
-	private native synchronized int[] processTracking(long handle, byte[] image);
+	protected native synchronized int[] processTracking(long handle, byte[] image);
 
 	private native synchronized boolean releaseHandle(long handle);
 
