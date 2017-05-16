@@ -52,10 +52,10 @@ bool writeDBGInfo(Rect rect, int opt) {
 	{
 		switch (opt) {
 		case 0:
-			fprintf(fp, "INIT ID: %d , Rect: %d %d %d %d\r\n", debugid, rect.x, rect.y, rect.width, rect.height);
+			fprintf(fp, "INIT ID: %d , Rect: %d %d %d %d , %lld ms\r\n", debugid, rect.x, rect.y, rect.width, rect.height, timer.get_count());
 			break;
 		case 1:
-			fprintf(fp, "ADD ID: %d , Rect: %d %d %d %d\r\n", debugid, rect.x, rect.y, rect.width, rect.height);
+			fprintf(fp, "ADD ID: %d , Rect: %d %d %d %d , %lld ms\r\n", debugid, rect.x, rect.y, rect.width, rect.height, timer.get_count());
 			break;
 		case 2:
 			fprintf(fp, "RUN ID: %d , Rect: %d %d %d %d , %lld ms\r\n", debugid, rect.x, rect.y, rect.width, rect.height, timer.get_count());
@@ -136,8 +136,11 @@ extern "C" {
 		}
 		if (JNI_DBG)
 			LOGD("initTrackingObjects, Rect width %d height %d", rec.width, rec.height);
-		jidsArrayData[0] = SetTrackingTarget((T_HANDLE)jhandle, image, rec);
-		trackingObjects.insert(make_pair(jidsArrayData[0], image(rec).clone()));
+		timer.Reset();
+        timer.Start();
+        jidsArrayData[0] = SetTrackingTarget((T_HANDLE)jhandle, image, rec);
+        trackingObjects.insert(make_pair(jidsArrayData[0], image(rec).clone()));
+        timer.Pause();
 		/* return the init rect array*/
 		int* buf_result = new int[5 * (jrectsLength / 4)];
 		buf_result[0] = jidsArrayData[0];
@@ -212,8 +215,11 @@ extern "C" {
 		}
 		if (JNI_DBG)
 			LOGD("initTrackingObjects, Rect width %d height %d", rec.width, rec.height);
+		timer.Reset();
+        timer.Start();
 		jidsArrayData[0] = SetTrackingTarget((T_HANDLE)jhandle, image, rec);
 		trackingObjects.insert(make_pair(jidsArrayData[0], myuv(rec).clone()));
+		timer.Pause();
 		/* return the init rect array*/
 		int* buf_result = new int[5 * (jrectsLength / 4)];
 		buf_result[0] = jidsArrayData[0];
@@ -287,8 +293,11 @@ extern "C" {
 			}
 			if (JNI_DBG)
 				LOGD("AddTrackingTarget, Rect width %d height %d", target.width, target.height);
+			timer.Reset();
+            timer.Start();
 			jidsArrayData[j] = AddTrackingTarget((T_HANDLE)jhandle, image, target);
 			trackingObjects.insert(make_pair(jidsArrayData[j], image(target).clone()));
+			timer.Pause();
 
 			// For debug Image
 			if (JNI_DBG) {
@@ -370,9 +379,12 @@ extern "C" {
 			}
 			if (JNI_DBG)
 				LOGD("AddTrackingTarget, Rect width %d height %d", target.width, target.height);
+
+			timer.Reset();
+            timer.Start();
 			jidsArrayData[j] = AddTrackingTarget((T_HANDLE)jhandle, image, target);
 			trackingObjects.insert(make_pair(jidsArrayData[j], myuv(target).clone()));
-
+            timer.Pause();
 			// For debug Image
 			if (JNI_DBG) {
 				writeDBGInfo(target, 1);
