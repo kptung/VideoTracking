@@ -96,8 +96,8 @@ CMT::CMT()
     descriptorType = "Feature2D.BRISK";
     matcherType = "BruteForce-Hamming";
     thrOutlier = 20;
-    thrConf = 0.9;
-    thrRatio = 0.9;
+    thrConf = (float)0.9;
+    thrRatio = (float)0.9;
     descriptorLength = 512;
     estimateScale = true;
     estimateRotation = true;
@@ -116,22 +116,10 @@ CMT::CMT()
 #endif
 }
 
-void CMT::initialise(cv::Mat im_gray0, cv::Point2f topleft, cv::Point2f bottomright)
+void CMT::initialise(const cv::Mat& im_gray0, const cv::Point2f& topleft, const cv::Point2f& bottomright)
 {
 
-//     //Initialise detector, descriptor, matcher
-// #if OPENCV_VERSION_CODE<OPENCV_VERSION(3,1,0)
-//     detector = cv::Algorithm::create<cv::FeatureDetector>(detectorType.c_str());
-//     descriptorExtractor = cv::Algorithm::create<cv::DescriptorExtractor>(descriptorType.c_str());
-//     descriptorMatcher = cv::DescriptorMatcher::create(matcherType.c_str());
-//     std::vector<std::string> list;
-//     cv::Algorithm::getList(list);
-// #else
-//     detector = cv::BRISK::create();
-//     descriptorMatcher = cv::DescriptorMatcher::create(matcherType.c_str());
-// #endif
-
-    //Get initial keypoints in whole image
+	//Get initial keypoints in whole image
     std::vector<cv::KeyPoint> keypoints;
     detector->detect(im_gray0, keypoints);
 
@@ -537,7 +525,7 @@ std::vector<bool> in1d(const std::vector<int>& a, const std::vector<int>& b)
     return result;
 }
 
-void CMT::processFrame(cv::Mat im_gray)
+void CMT::processFrame(const cv::Mat& im_gray)
 {
     if (!isInitialized)
     {

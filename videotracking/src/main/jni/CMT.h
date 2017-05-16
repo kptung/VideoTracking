@@ -69,9 +69,9 @@ public:
     std::vector<std::pair<cv::KeyPoint, int> > outliers;
 
     CMT();
-    void initialise(cv::Mat im_gray0, cv::Point2f topleft, cv::Point2f bottomright);
+    void initialise(const cv::Mat& im_gray0, const cv::Point2f& topleft, const cv::Point2f& bottomright);
     void estimate(const std::vector<std::pair<cv::KeyPoint, int> >& keypointsIN, cv::Point2f& center, float& scaleEstimate, float& medRot, std::vector<std::pair<cv::KeyPoint, int> >& keypoints);
-    void processFrame(cv::Mat im_gray);
+    void processFrame(const cv::Mat& im_gray);
 };
 
 class Cluster
