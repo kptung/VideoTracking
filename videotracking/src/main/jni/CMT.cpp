@@ -21,7 +21,7 @@
 
 #endif
 
-void inout_rect(const std::vector<cv::KeyPoint>& keypoints, const cv::Point2f& topleft, const cv::Point2f& bottomright, std::vector<cv::KeyPoint>& in, std::vector<cv::KeyPoint>& out)
+void inout_rect(const std::vector<cv::KeyPoint>& keypoints, cv::Point2f topleft, cv::Point2f bottomright, std::vector<cv::KeyPoint>& in, std::vector<cv::KeyPoint>& out)
 {
     for(unsigned int i = 0; i < keypoints.size(); i++)
     {
@@ -32,7 +32,7 @@ void inout_rect(const std::vector<cv::KeyPoint>& keypoints, const cv::Point2f& t
 }
 
 
-void track(const cv::Mat& im_prev, const cv::Mat& im_gray, const std::vector<std::pair<cv::KeyPoint, int> >& keypointsIN, std::vector<std::pair<cv::KeyPoint, int> >& keypointsTracked, std::vector<unsigned char>& status, int THR_FB)
+void track(cv::Mat im_prev, cv::Mat im_gray, const std::vector<std::pair<cv::KeyPoint, int> >& keypointsIN, std::vector<std::pair<cv::KeyPoint, int> >& keypointsTracked, std::vector<unsigned char>& status, int THR_FB)
 {
     //Status of tracked keypoint - True means successfully tracked
     status = std::vector<unsigned char>();
@@ -81,7 +81,7 @@ void track(const cv::Mat& im_prev, const cv::Mat& im_gray, const std::vector<std
     else keypointsTracked = std::vector<std::pair<cv::KeyPoint, int> >();
 }
 
-cv::Point2f rotate(const cv::Point2f& p, float rad)
+cv::Point2f rotate(cv::Point2f p, float rad)
 {
     if(rad == 0)
         return p;
@@ -90,11 +90,10 @@ cv::Point2f rotate(const cv::Point2f& p, float rad)
     return cv::Point2f(c*p.x-s*p.y,s*p.x+c*p.y);
 }
 
-
 CMT::CMT()
 {
-	
-	descriptorType = "Feature2D.BRISK";
+	detectorType = "Feature2D.BRISK";
+    descriptorType = "Feature2D.BRISK";
     matcherType = "BruteForce-Hamming";
     thrOutlier = 20;
     thrConf = 0.9;
@@ -105,7 +104,6 @@ CMT::CMT()
     nbInitialKeypoints = 0;
     isInitialized = false;
 	//Initialise detector, descriptor, matcher
-	detectorChoice = 1;
 #if OPENCV_VERSION_CODE<OPENCV_VERSION(3,1,0)
 	detector = cv::Algorithm::create<cv::FeatureDetector>(detectorType.c_str());
 	descriptorExtractor = cv::Algorithm::create<cv::DescriptorExtractor>(descriptorType.c_str());
@@ -113,40 +111,25 @@ CMT::CMT()
 	std::vector<std::string> list;
 	cv::Algorithm::getList(list);
 #else
-	detectorSetting(detectorChoice);
 	detector = cv::BRISK::create();
 	descriptorMatcher = cv::DescriptorMatcher::create(matcherType.c_str());
 #endif
 }
 
-void CMT::setDetector(const int ch)
+void CMT::initialise(cv::Mat im_gray0, cv::Point2f topleft, cv::Point2f bottomright)
 {
-	detectorChoice = ch;
-	detectorSetting(detectorChoice);
-}
 
-void CMT::detectorSetting(const int ch)
-{
-	switch (ch)
-	{
-	case 1:
-		detectorType = "Feature2D.BRISK";
-		detector = cv::BRISK::create();
-		break;
-	case 2:
-		detectorType = "Feature2D.ORB";
-		detector = cv::ORB::create();
-		break;
-	case 3:
-		detectorType = "Feature2D.AKAZE";
-		break;
-	default:
-		break;
-	}
-}
-
-void CMT::initialise(const cv::Mat& im_gray0, const cv::Point2f& topleft, const cv::Point2f& bottomright)
-{
+//     //Initialise detector, descriptor, matcher
+// #if OPENCV_VERSION_CODE<OPENCV_VERSION(3,1,0)
+//     detector = cv::Algorithm::create<cv::FeatureDetector>(detectorType.c_str());
+//     descriptorExtractor = cv::Algorithm::create<cv::DescriptorExtractor>(descriptorType.c_str());
+//     descriptorMatcher = cv::DescriptorMatcher::create(matcherType.c_str());
+//     std::vector<std::string> list;
+//     cv::Algorithm::getList(list);
+// #else
+//     detector = cv::BRISK::create();
+//     descriptorMatcher = cv::DescriptorMatcher::create(matcherType.c_str());
+// #endif
 
     //Get initial keypoints in whole image
     std::vector<cv::KeyPoint> keypoints;
@@ -554,7 +537,7 @@ std::vector<bool> in1d(const std::vector<int>& a, const std::vector<int>& b)
     return result;
 }
 
-void CMT::processFrame(const cv::Mat& im_gray)
+void CMT::processFrame(cv::Mat im_gray)
 {
     if (!isInitialized)
     {
