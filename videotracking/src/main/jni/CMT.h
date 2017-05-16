@@ -14,6 +14,10 @@
 class CMT
 {
 public:
+	/****** detetor choice ***********/
+	int detectorChoice;
+	/****** detetor choice **********/
+
     std::string detectorType;
     std::string descriptorType;
     std::string matcherType;
@@ -50,7 +54,6 @@ public:
     bool hasResult;
     bool isInitialized;
 
-
     cv::Point2f centerToTopLeft;
     cv::Point2f centerToTopRight;
     cv::Point2f centerToBottomRight;
@@ -69,9 +72,12 @@ public:
     std::vector<std::pair<cv::KeyPoint, int> > outliers;
 
     CMT();
-    void initialise(cv::Mat im_gray0, cv::Point2f topleft, cv::Point2f bottomright);
+    void initialise(const cv::Mat& im_gray0, const cv::Point2f& topleft, const cv::Point2f& bottomright);
     void estimate(const std::vector<std::pair<cv::KeyPoint, int> >& keypointsIN, cv::Point2f& center, float& scaleEstimate, float& medRot, std::vector<std::pair<cv::KeyPoint, int> >& keypoints);
-    void processFrame(cv::Mat im_gray);
+    void processFrame(const cv::Mat& im_gray);
+	void setDetector(const int ch);
+	void detectorSetting(const int ch);
+
 };
 
 class Cluster
@@ -82,7 +88,7 @@ public:
     int num;
 };
 
-void inout_rect(const std::vector<cv::KeyPoint>& keypoints, cv::Point2f topleft, cv::Point2f bottomright, std::vector<cv::KeyPoint>& in, std::vector<cv::KeyPoint>& out);
-void track(cv::Mat im_prev, cv::Mat im_gray, const std::vector<std::pair<cv::KeyPoint, int> >& keypointsIN, std::vector<std::pair<cv::KeyPoint, int> >& keypointsTracked, std::vector<unsigned char>& status, int THR_FB = 20);
-cv::Point2f rotate(cv::Point2f p, float rad);
+void inout_rect(const std::vector<cv::KeyPoint>& keypoints, const cv::Point2f& topleft, const cv::Point2f& bottomright, std::vector<cv::KeyPoint>& in, std::vector<cv::KeyPoint>& out);
+void track(const cv::Mat& im_prev, const cv::Mat& im_gray, const std::vector<std::pair<cv::KeyPoint, int> >& keypointsIN, std::vector<std::pair<cv::KeyPoint, int> >& keypointsTracked, std::vector<unsigned char>& status, int THR_FB = 20);
+cv::Point2f rotate(const cv::Point2f& p, float rad);
 #endif // CMT_H
