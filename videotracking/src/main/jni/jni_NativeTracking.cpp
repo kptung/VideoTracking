@@ -691,9 +691,7 @@ JNIEXPORT jobject JNICALL Java_org_iii_snsi_videotracking_NativeTracking_convert
 	Mat image;
 	Mat myuv(imgHeight + imgHeight / 2, imgWidth, CV_8UC1, (uchar *)frame);
 	cv::cvtColor(myuv, image, CV_YUV420sp2BGR);
-	cv::imwrite(std::string("/sdcard/DBG/Convert_NV21_O") + JPG, image);
 	cv::cvtColor(myuv, matImage, CV_YUV420sp2BGR);
-	cv::imwrite(std::string("/sdcard/DBG/Convert_NV21") + JPG, matImage);
 
 	// Release pointer
 	env->DeleteLocalRef(classCvMat);
