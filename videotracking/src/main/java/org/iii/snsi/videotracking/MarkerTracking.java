@@ -50,14 +50,23 @@ public class MarkerTracking extends NativeTracking {
         imgHeight = frame.rows();
         Imgproc.resize(frame, trackingImage,
                 new Size(TRACKING_IMG_WIDTH, TRACKING_IMG_HEIGHT));
+
+        // image ratio
+        double imgWidthRatio, imgHeightRatio;
+        imgWidthRatio = (double)TRACKING_IMG_WIDTH / imgWidth;
+        imgHeightRatio = (double)TRACKING_IMG_HEIGHT / imgHeight;
+
         // corner
         Point[] corner = new Point[rect.length];
         for (int i = 0; i < rect.length; i += 4) {
-            corner[i] = new Point(rect[i], rect[i + 1]);
-            corner[i + 1] = new Point(rect[i] + rect[i + 2], rect[i + 1]);
-            corner[i + 2] = new Point(rect[i] + rect[i + 2],
-                    rect[i + 1] + rect[i + 3]);
-            corner[i + 3] = new Point(rect[i], rect[i + 1] + rect[i + 3]);
+            corner[i] = new Point(rect[i] * imgWidthRatio,
+                    rect[i + 1] * imgHeightRatio);
+            corner[i + 1] = new Point((rect[i] + rect[i + 2]) * imgWidthRatio,
+                    rect[i + 1] * imgHeightRatio);
+            corner[i + 2] = new Point((rect[i] + rect[i + 2]) * imgWidthRatio,
+                    (rect[i + 1] + rect[i + 3]) * imgHeightRatio);
+            corner[i + 3] = new Point(rect[i] * imgWidthRatio,
+                    (rect[i + 1] + rect[i + 3]) * imgHeightRatio);
         }
 
         Point3[] objWCS = IrMixedReality.addObjectTracking(trackingImage,
@@ -104,8 +113,8 @@ public class MarkerTracking extends NativeTracking {
 
         // image ratio
         double imgWidthRatio, imgHeightRatio;
-        imgWidthRatio = imgWidth / TRACKING_IMG_WIDTH;
-        imgHeightRatio = imgHeight / TRACKING_IMG_HEIGHT;
+        imgWidthRatio = (double)imgWidth / TRACKING_IMG_WIDTH;
+        imgHeightRatio = (double)imgHeight / TRACKING_IMG_HEIGHT;
 
         // Rect
         int[] rect = new int[objWCSPts.size() * 5];
