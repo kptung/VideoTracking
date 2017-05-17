@@ -139,8 +139,8 @@ extern "C" {
 		timer.Reset();
         timer.Start();
         jidsArrayData[0] = SetTrackingTarget((T_HANDLE)jhandle, image, rec);
-        trackingObjects.insert(make_pair(jidsArrayData[0], image(rec).clone()));
         timer.Pause();
+        trackingObjects.insert(make_pair(jidsArrayData[0], image(rec).clone()));
 		/* return the init rect array*/
 		int* buf_result = new int[5 * (jrectsLength / 4)];
 		buf_result[0] = jidsArrayData[0];
@@ -218,8 +218,9 @@ extern "C" {
 		timer.Reset();
         timer.Start();
 		jidsArrayData[0] = SetTrackingTarget((T_HANDLE)jhandle, image, rec);
-		trackingObjects.insert(make_pair(jidsArrayData[0], myuv(rec).clone()));
 		timer.Pause();
+		trackingObjects.insert(make_pair(jidsArrayData[0], myuv(rec).clone()));
+
 		/* return the init rect array*/
 		int* buf_result = new int[5 * (jrectsLength / 4)];
 		buf_result[0] = jidsArrayData[0];
@@ -296,8 +297,9 @@ extern "C" {
 			timer.Reset();
             timer.Start();
 			jidsArrayData[j] = AddTrackingTarget((T_HANDLE)jhandle, image, target);
-			trackingObjects.insert(make_pair(jidsArrayData[j], image(target).clone()));
 			timer.Pause();
+			trackingObjects.insert(make_pair(jidsArrayData[j], image(target).clone()));
+
 
 			// For debug Image
 			if (JNI_DBG) {
@@ -383,8 +385,9 @@ extern "C" {
 			timer.Reset();
             timer.Start();
 			jidsArrayData[j] = AddTrackingTarget((T_HANDLE)jhandle, image, target);
+			timer.Pause();
 			trackingObjects.insert(make_pair(jidsArrayData[j], myuv(target).clone()));
-            timer.Pause();
+
 			// For debug Image
 			if (JNI_DBG) {
 				writeDBGInfo(target, 1);
