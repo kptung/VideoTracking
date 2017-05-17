@@ -11,6 +11,13 @@ android {
         targetSdkVersion 23
     }
 
+    packagingOptions {
+        exclude 'lib/armeabi/libopencv_java3.so'
+        exclude 'lib/armeabi-v7a/libopencv_java3.so'
+        exclude 'lib/mips/libopencv_java3.so'
+        exclude 'lib/x86/libopencv_java3.so'
+    }
+
     // Build OpenCV NDK
     sourceSets.main {
         jni.srcDirs = [] //disable automatic ndk-build call

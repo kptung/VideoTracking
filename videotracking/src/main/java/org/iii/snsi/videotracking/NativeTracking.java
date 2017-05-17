@@ -1,5 +1,7 @@
 package org.iii.snsi.videotracking;
 
+import org.opencv.core.Mat;
+
 public class NativeTracking {
 
 	static {
@@ -137,5 +139,9 @@ public class NativeTracking {
 	public native synchronized int[] convertYUV2RGBA(int width, int height, byte[] yuv);
 
 	public native synchronized byte[] convertRGBA2YUV(int width, int height, byte[] bgra);
+
+	protected native synchronized Mat convertARGB2MAT(byte[] argb, int size);
+
+	protected native synchronized Mat convertNV212MAT(byte[] yuv);
 
 }

@@ -638,6 +638,69 @@ extern "C" {
 
 	}
 
+/*
+ * Class:     org_iii_snsi_videotracking_NativeTracking
+ * Method:    convertARGB2MAT
+ * Signature: ([BIJ)Lorg/opencv/core/Mat;
+ */
+JNIEXPORT jobject JNICALL Java_org_iii_snsi_videotracking_NativeTracking_convertARGB2MAT
+  (JNIEnv *env, jobject jNativeTracking, jbyteArray jargb, jint jsize) {
+	// Get a class reference
+	jclass classCvMat = env->FindClass("org/opencv/core/Mat");
+
+	// Get the Field ID of the instance variables
+	jmethodID matInit = env->GetMethodID(classCvMat, "<init>", "()V");
+	jmethodID getPtrMethod = env->GetMethodID(classCvMat, "getNativeObjAddr", "()J");
+
+	// Construct and return Mat
+	jobject objCvMat = env->NewObject(classCvMat, matInit);
+	Mat& matImage = *(Mat*)env->CallLongMethod(objCvMat, getPtrMethod);
+
+	jbyte* frame = env->GetByteArrayElements(jargb, 0);
+	Mat rawData = Mat(1, jsize, CV_8UC1, (uchar *)frame);
+	matImage = imdecode(rawData, IMREAD_COLOR);
+
+	imgHeight = (int)matImage.rows;
+	imgWidth = (int)matImage.cols;
+
+	// Release pointer
+	env->DeleteLocalRef(classCvMat);
+
+	return objCvMat;
+  }
+
+/*
+ * Class:     org_iii_snsi_videotracking_NativeTracking
+ * Method:    convertNV212MAT
+ * Signature: ([BJ)Lorg/opencv/core/Mat;
+ */
+JNIEXPORT jobject JNICALL Java_org_iii_snsi_videotracking_NativeTracking_convertNV212MAT
+  (JNIEnv *env, jobject jNativeTracking, jbyteArray jyuv) {
+	// Get a class reference
+	jclass classCvMat = env->FindClass("org/opencv/core/Mat");
+
+	// Get the Field ID of the instance variables
+	jmethodID matInit = env->GetMethodID(classCvMat, "<init>", "()V");
+	jmethodID getPtrMethod = env->GetMethodID(classCvMat, "getNativeObjAddr", "()J");
+
+	// Construct and return Mat
+	jobject objCvMat = env->NewObject(classCvMat, matInit);
+	Mat& matImage = *(Mat*)env->CallLongMethod(objCvMat, getPtrMethod);
+
+	jbyte* frame = env->GetByteArrayElements(jyuv, 0);
+	Mat image;
+	Mat myuv(imgHeight + imgHeight / 2, imgWidth, CV_8UC1, (uchar *)frame);
+	cv::cvtColor(myuv, image, CV_YUV420sp2BGR);
+	cv::imwrite(std::string("/sdcard/DBG/Convert_NV21_O") + JPG, image);
+	cv::cvtColor(myuv, matImage, CV_YUV420sp2BGR);
+	cv::imwrite(std::string("/sdcard/DBG/Convert_NV21") + JPG, matImage);
+
+	// Release pointer
+	env->DeleteLocalRef(classCvMat);
+
+	return objCvMat;
+  }
+
 #ifdef __cplusplus
 }
 #endif

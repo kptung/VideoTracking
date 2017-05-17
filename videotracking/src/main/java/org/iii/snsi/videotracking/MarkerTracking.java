@@ -1,11 +1,10 @@
 package org.iii.snsi.videotracking;
 
 import org.iii.snsi.irglass.library.IrMixedReality;
-import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.Point;
 import org.opencv.core.Point3;
-import org.opencv.imgcodecs.Imgcodecs;
+import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 
 import java.util.ArrayList;
@@ -17,16 +16,23 @@ import java.util.List;
 public class MarkerTracking extends NativeTracking {
 
     private static final String TAG = "MarkerTracking";
+    private static final int TRACKING_IMG_WIDTH = 320;
+    private static final int TRACKING_IMG_HEIGHT = 240;
     private static int trackingObjId;
-    private static List<Point3[]> objWCSPts;
     private static int imgWidth, imgHeight;
+    private static List<Point3[]> objWCSPts;
+    private static IrMixedReality.ProjResult projResult;
 
     public MarkerTracking() {
         IrMixedReality.loadCalibration();
-        trackingObjId = 0;
-        objWCSPts = new ArrayList<>();
+        trackingObjId = -1;
         imgWidth = 0;
         imgHeight = 0;
+        objWCSPts = new ArrayList<>();
+    }
+
+    public static IrMixedReality.ProjResult getProjResult() {
+        return projResult;
     }
 
     /**
@@ -38,28 +44,26 @@ public class MarkerTracking extends NativeTracking {
      */
     public int[] addTrackingObjectsJPG(byte[] image, int size, int[] rect) {
         // image
-        Mat rawData = new Mat(1, size, CvType.CV_8UC1);
-        rawData.put(1, size, image);
-        Mat frame = Imgcodecs.imdecode(rawData, Imgcodecs.IMREAD_COLOR);
+        Mat frame = convertARGB2MAT(image, size);
+        Mat trackingImage = new Mat();
         imgWidth = frame.cols();
         imgHeight = frame.rows();
-
+        Imgproc.resize(frame, trackingImage,
+                new Size(TRACKING_IMG_WIDTH, TRACKING_IMG_HEIGHT));
         // corner
         Point[] corner = new Point[rect.length];
         for (int i = 0; i < rect.length; i += 4) {
-            corner[i].x = rect[i];
-            corner[i].y = rect[i + 1];
-            corner[i + 1].x = rect[i] + rect[i + 2];
-            corner[i + 1].y = rect[i + 1];
-            corner[i + 2].x = rect[i] + rect[i + 2];
-            corner[i + 2].y = rect[i + 1] + rect[i + 3];
-            corner[i + 3].x = rect[i];
-            corner[i + 3].y = rect[i + 1] + rect[i + 3];
+            corner[i] = new Point(rect[i], rect[i + 1]);
+            corner[i + 1] = new Point(rect[i] + rect[i + 2], rect[i + 1]);
+            corner[i + 2] = new Point(rect[i] + rect[i + 2],
+                    rect[i + 1] + rect[i + 3]);
+            corner[i + 3] = new Point(rect[i], rect[i + 1] + rect[i + 3]);
         }
 
-        Point3[] objWCS = IrMixedReality.addObjectTracking(frame, corner);
-        objWCSPts.add(objWCS);
+        Point3[] objWCS = IrMixedReality.addObjectTracking(trackingImage,
+                corner);
         if (objWCS != null) {
+            objWCSPts.add(objWCS);
             trackingObjId += 1;
         }
 
@@ -74,7 +78,7 @@ public class MarkerTracking extends NativeTracking {
      */
     public boolean removeTrackingObject(int[] ids) {
         // Remove all tracking object
-        trackingObjId = 0;
+        trackingObjId = -1;
         objWCSPts.clear();
         return true;
     }
@@ -91,26 +95,38 @@ public class MarkerTracking extends NativeTracking {
      */
     public int[] processTracking(byte[] image) {
         // image
-        Mat mYUV = new Mat(imgHeight + imgHeight / 2, imgWidth, CvType.CV_8UC1);
-        mYUV.put(imgHeight + imgHeight / 2, imgWidth, image);
-        Mat mBGR = new Mat();
-        Imgproc.cvtColor(mYUV, mBGR, Imgproc.COLOR_YUV420sp2BGR);
+        Mat mBGR = convertNV212MAT(image);
+        Mat trackingImage = new Mat();
+        imgWidth = mBGR.cols();
+        imgHeight = mBGR.rows();
+        Imgproc.resize(mBGR, trackingImage,
+                new Size(TRACKING_IMG_WIDTH, TRACKING_IMG_HEIGHT));
+
+        // image ratio
+        double imgWidthRatio, imgHeightRatio;
+        imgWidthRatio = imgWidth / TRACKING_IMG_WIDTH;
+        imgHeightRatio = imgHeight / TRACKING_IMG_HEIGHT;
 
         // Rect
-        int[] rect = new int[objWCSPts.size() * 10];
-        for (int i = 0; i < objWCSPts.size() * 10; i += 10) {
-            Point[] screenPt = IrMixedReality.getObjectProj(mBGR,
-                    objWCSPts.get(i / 10));
-            rect[i] = trackingObjId;
-            rect[i + 1] = (int)screenPt[0].x;
-            rect[i + 2] = (int)screenPt[0].y;
-            rect[i + 3] = (int)(screenPt[2].x - screenPt[0].x);
-            rect[i + 4] = (int)(screenPt[2].y - screenPt[0].y);
-            rect[i + 5] = trackingObjId + 1;
-            rect[i + 6] = (int)screenPt[4].x;
-            rect[i + 7] = (int)screenPt[4].y;
-            rect[i + 8] = (int)(screenPt[6].x - screenPt[4].x);
-            rect[i + 9] = (int)(screenPt[6].y - screenPt[4].y);
+        int[] rect = new int[objWCSPts.size() * 5];
+        for (int i = 0; i < objWCSPts.size() * 5; i += 5) {
+            projResult = IrMixedReality.getObjectProj(trackingImage,
+                    objWCSPts.get(i / 5));
+            if (projResult != null && projResult.imagePts != null) {
+                rect[i] = trackingObjId;
+                rect[i + 1] = (int) (projResult.imagePts[0].x * imgWidthRatio);
+                rect[i + 2] = (int) (projResult.imagePts[0].y * imgHeightRatio);
+                rect[i + 3] = (int) ((projResult.imagePts[2].x
+                        - projResult.imagePts[0].x) * imgWidthRatio);
+                rect[i + 4] = (int) ((projResult.imagePts[2].y
+                        - projResult.imagePts[0].y) * imgHeightRatio);
+            } else {
+                rect[i] = -1;
+                rect[i + 1] = -1;
+                rect[i + 2] = -1;
+                rect[i + 3] = -1;
+                rect[i + 4] = -1;
+            }
         }
 
         return rect;
