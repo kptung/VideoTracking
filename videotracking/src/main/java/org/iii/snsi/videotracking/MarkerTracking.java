@@ -15,6 +15,11 @@ import java.util.List;
  */
 public class MarkerTracking extends NativeTracking {
 
+    static {
+        System.loadLibrary("irmarker");
+        System.loadLibrary("opencv_java3");
+    }
+
     private static final String TAG = "MarkerTracking";
     private static final int TRACKING_IMG_WIDTH = 320;
     private static final int TRACKING_IMG_HEIGHT = 240;
