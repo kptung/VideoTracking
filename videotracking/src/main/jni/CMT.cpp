@@ -525,7 +525,7 @@ std::vector<bool> in1d(const std::vector<int>& a, const std::vector<int>& b)
     return result;
 }
 
-void CMT::processFrame(const cv::Mat& im_gray)
+void CMT::processFrame(cv::Mat im_gray)
 {
     if (!isInitialized)
     {
