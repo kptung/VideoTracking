@@ -29,6 +29,8 @@ public class MarkerTracking extends NativeTracking {
     private static IrMixedReality.ProjResult projResult;
 
     public MarkerTracking() {
+        // initialize IrMixedReality
+        IrMixedReality.setDebugMode(false);
         IrMixedReality.loadCalibration();
         trackingObjId = -1;
         imgWidth = 0;
