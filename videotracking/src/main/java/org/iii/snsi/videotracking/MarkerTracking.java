@@ -21,8 +21,8 @@ public class MarkerTracking extends NativeTracking {
     }
 
     private static final String TAG = "MarkerTracking";
-    private static final int TRACKING_IMG_WIDTH = 320;
-    private static final int TRACKING_IMG_HEIGHT = 240;
+    private static final int TRACKING_IMG_WIDTH = 640;
+    private static final int TRACKING_IMG_HEIGHT = 480;
     private static int trackingObjId;
     private static int imgWidth, imgHeight;
     private static List<Point3[]> objWCSPts;
