@@ -1,12 +1,17 @@
 package org.iii.snsi.videotracking;
 
+import android.os.Environment;
+import android.util.Log;
+
 import org.iii.snsi.irglass.library.IrMixedReality;
 import org.opencv.core.Mat;
 import org.opencv.core.Point;
 import org.opencv.core.Point3;
 import org.opencv.core.Size;
+import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -29,8 +34,13 @@ public class MarkerTracking extends NativeTracking {
     private static IrMixedReality.ProjResult projResult;
 
     public MarkerTracking() {
+        File f = new File(DIR);
+        if (!f.exists()) {
+            f.mkdirs();
+        }
+
         // initialize IrMixedReality
-        IrMixedReality.setDebugMode(false);
+        IrMixedReality.setDebugMode(true);
         IrMixedReality.loadCalibration();
         trackingObjId = -1;
         imgWidth = 0;
@@ -82,6 +92,8 @@ public class MarkerTracking extends NativeTracking {
             objWCSPts.add(objWCS);
             trackingObjId += 1;
         }
+        Log.e("MR", "addTrackingObjectsJPG = " + (objWCS != null ? "ok"
+                : "failed"));
 
         return new int[] {trackingObjId};
     }
@@ -98,6 +110,11 @@ public class MarkerTracking extends NativeTracking {
         objWCSPts.clear();
         return true;
     }
+
+    public static final String ROOT =
+            Environment.getExternalStorageDirectory().getAbsolutePath();
+    public static final String DIR = ROOT + "/IR/";
+    public static int num = 1;
 
     /**
      * Processing Camshit to track rectangles
@@ -117,6 +134,9 @@ public class MarkerTracking extends NativeTracking {
         imgHeight = mBGR.rows();
         Imgproc.resize(mBGR, trackingImage,
                 new Size(TRACKING_IMG_WIDTH, TRACKING_IMG_HEIGHT));
+
+        Imgcodecs.imwrite(DIR + num + ".jpg", trackingImage);
+        num++;
 
         // image ratio
         double imgWidthRatio, imgHeightRatio;
