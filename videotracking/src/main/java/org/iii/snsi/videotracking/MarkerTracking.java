@@ -135,8 +135,8 @@ public class MarkerTracking extends NativeTracking {
         Imgproc.resize(mBGR, trackingImage,
                 new Size(TRACKING_IMG_WIDTH, TRACKING_IMG_HEIGHT));
 
-        Imgcodecs.imwrite(DIR + num + ".jpg", trackingImage);
-        num++;
+        // Imgcodecs.imwrite(DIR + num + ".jpg", trackingImage);
+        // num++;
 
         // image ratio
         double imgWidthRatio, imgHeightRatio;
