@@ -1,1 +1,1 @@
-include ':app', ':videotracking'
+include ':app', ':videotracking', ':trackingInterface'
