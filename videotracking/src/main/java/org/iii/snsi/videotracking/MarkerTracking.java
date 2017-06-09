@@ -8,7 +8,6 @@ import org.opencv.core.Mat;
 import org.opencv.core.Point;
 import org.opencv.core.Point3;
 import org.opencv.core.Size;
-import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 
 import java.io.File;
@@ -33,48 +32,35 @@ public class MarkerTracking extends NativeTracking {
     private static List<Point3[]> objWCSPts;
     private static IrMixedReality.ProjResult projResult;
 
-    public MarkerTracking() {
-        File f = new File(DIR);
-        if (!f.exists()) {
-            f.mkdirs();
-        }
+    public static final String DIR = Environment.getExternalStorageDirectory()
+            .getAbsolutePath() + "/IR/";
+    public static int num = 1;
 
-        // initialize IrMixedReality
-        IrMixedReality.setDebugMode(true);
-        IrMixedReality.loadCalibration();
+    public MarkerTracking() {
         trackingObjId = -1;
         imgWidth = 0;
         imgHeight = 0;
         objWCSPts = new ArrayList<>();
+
+        IrMixedReality.setDebugMode(true);
+        IrMixedReality.loadCalibration();
+
+        File f = new File(DIR);
+        if (!f.exists()) {
+            f.mkdirs();
+        }
     }
 
-    public static IrMixedReality.ProjResult getProjResult() {
-        return projResult;
-    }
-
-    /**
-     * Processing Camshit to track rectangles
-     *
-     * @param image The ARGB image.
-     * @param rect The integer array that indecate retangle.
-     * @return A postive rectangle id, return -1 if error occurred.
-     */
-        // image
-    @Override
-    public int[] addTrackingObjectsJPG(byte[] image, int[] rect) {
-        Mat frame = convertARGB2MAT(image, image.length);
+    private int[] addTrackingObjects(Mat frame, int[] rect) {
         Mat trackingImage = new Mat();
         imgWidth = frame.cols();
         imgHeight = frame.rows();
         Imgproc.resize(frame, trackingImage,
                 new Size(TRACKING_IMG_WIDTH, TRACKING_IMG_HEIGHT));
 
-        // image ratio
-        double imgWidthRatio, imgHeightRatio;
-        imgWidthRatio = (double)TRACKING_IMG_WIDTH / imgWidth;
-        imgHeightRatio = (double)TRACKING_IMG_HEIGHT / imgHeight;
+        double imgWidthRatio = (double) TRACKING_IMG_WIDTH / imgWidth;
+        double imgHeightRatio = (double) TRACKING_IMG_HEIGHT / imgHeight;
 
-        // corner
         Point[] corner = new Point[rect.length];
         for (int i = 0; i < rect.length; i += 4) {
             corner[i] = new Point(rect[i] * imgWidthRatio,
@@ -93,64 +79,58 @@ public class MarkerTracking extends NativeTracking {
             objWCSPts.add(objWCS);
             trackingObjId += 1;
         }
-        Log.e("MR", "addTrackingObjectsJPG = " + (objWCS != null ? "ok"
-                : "failed"));
+
+        Log.e("MR", "addTrackingObjects = "
+                + (objWCS != null ? "ok" : "failed"));
 
         return new int[] {trackingObjId};
     }
 
-    /**
-     * The function to release rectangle object
-     *
-     * @param ids The rectangle id that is returned by initTracking.
-     * @return true if success, otherwise return false
-     */
+    @Override
+    public int[] addTrackingObjectsJPG(byte[] image, int[] rect) {
+        Mat frame = convertARGB2MAT(image, image.length);
+        return addTrackingObjects(frame, rect);
+    }
+
+    @Override
+    public int[] addTrackingObjects(byte[] image, int width, int height,
+            int[] rect) {
+        Mat matBGR = convertNV212MAT(image);
+        return addTrackingObjects(matBGR, rect);
+    }
+
+    @Override
+    public int[] addTrackingObjectsWCS(Point3[] objWCS, int w, int h) {
+        return null;
+    }
+
     @Override
     public boolean removeTrackingObjects(int[] ids) {
-        // Remove all tracking object
         trackingObjId = -1;
         objWCSPts.clear();
         return true;
     }
 
-    public static final String ROOT =
-            Environment.getExternalStorageDirectory().getAbsolutePath();
-    public static final String DIR = ROOT + "/IR/";
-    public static int num = 1;
-
-    /**
-     * Processing Camshit to track rectangles
-     *
-     * @param image The NV21 image. i.e.
-     * [0,122,20,45,78,1,23,23,100,20,2,-1,-1,-1,-1] means the following:
-     * RectangleID 0: x = 122, y = 20, w = 45, h = 78.<br />
-     * RectangleID 1: x = 23, y = 23, w = 100, h = 20.<br />
-     * RectangleID 2: False alarm.
-     * @return Return false if error occured, otherwise return true.
-     */
-        // image
     @Override
     public Object processTracking(byte[] image) {
-        Mat mBGR = convertNV212MAT(image);
+        Mat matBGR = convertNV212MAT(image);
         Mat trackingImage = new Mat();
-        imgWidth = mBGR.cols();
-        imgHeight = mBGR.rows();
-        Imgproc.resize(mBGR, trackingImage,
+        imgWidth = matBGR.cols();
+        imgHeight = matBGR.rows();
+        Imgproc.resize(matBGR, trackingImage,
                 new Size(TRACKING_IMG_WIDTH, TRACKING_IMG_HEIGHT));
 
         // Imgcodecs.imwrite(DIR + num + ".jpg", trackingImage);
         // num++;
 
-        // image ratio
-        double imgWidthRatio, imgHeightRatio;
-        imgWidthRatio = (double)imgWidth / TRACKING_IMG_WIDTH;
-        imgHeightRatio = (double)imgHeight / TRACKING_IMG_HEIGHT;
+        double imgWidthRatio = (double) imgWidth / TRACKING_IMG_WIDTH;
+        double imgHeightRatio = (double) imgHeight / TRACKING_IMG_HEIGHT;
 
-        // Rect
         int[] rect = new int[objWCSPts.size() * 5];
         for (int i = 0; i < objWCSPts.size() * 5; i += 5) {
             projResult = IrMixedReality.getObjectProj(trackingImage,
                     objWCSPts.get(i / 5));
+
             if (projResult != null && projResult.imagePts != null) {
                 rect[i] = trackingObjId;
                 rect[i + 1] = (int) (projResult.imagePts[0].x * imgWidthRatio);
@@ -169,14 +149,18 @@ public class MarkerTracking extends NativeTracking {
         }
 
         return rect;
-
     }
 
-    /**
-     * The function to release Tracking algorithm
-     */
-    public void releaseHandle() {
-        // Do nothing
+    @Override
+    public void release() {
     }
 
+    @Override
+    public boolean isNativeLibAvailable() {
+        return true;
+    }
+
+    public static IrMixedReality.ProjResult getProjResult() {
+        return projResult;
+    }
 }

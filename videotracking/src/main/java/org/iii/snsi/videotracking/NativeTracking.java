@@ -26,10 +26,10 @@ public class NativeTracking implements Tracker {
 	 * @param image The NV21 image.
 	 * @param width The image width.
 	 * @param height The image height.
-	 * @param rects A list of four elements integer array indecates retangles
+	 * @param rects A list of four elements integer array indicates rectangles
 	 * that will be track. </ br>
 	 * The data format is [[x1, y1, w1, h1],[x2, y2, w2, h2], ...]
-	 * @return A postive rectangle id, return -1 if error occurred.
+	 * @return A positive rectangle id, return -1 if error occurred.
 	 */
 	private int[] initTrackingObjects(byte[] image, int width, int height,
 			int[] rects) {
@@ -42,8 +42,8 @@ public class NativeTracking implements Tracker {
 	 * @param image The NV21 image.
 	 * @param width The image width.
 	 * @param height The image height.
-	 * @param rect The integer array that indecate retangle.
-	 * @return A postive rectangle id, return -1 if error occurred.
+	 * @param rect The integer array that indicate rectangle.
+	 * @return A positive rectangle id, return -1 if error occurred.
 	 */
 	@Override
 	public int[] addTrackingObjects(byte[] image, int width, int height,
@@ -64,8 +64,8 @@ public class NativeTracking implements Tracker {
 	 * Processing Camshit to track rectangles
 	 *
 	 * @param image The ARGB image.
-	 * @param rect The integer array that indecate retangle.
-	 * @return A postive rectangle id, return -1 if error occurred.
+	 * @param rect The integer array that indicate rectangle.
+	 * @return A positive rectangle id, return -1 if error occurred.
 	 */
 	@Override
 	public int[] addTrackingObjectsJPG(byte[] image, int[] rect) {
@@ -105,7 +105,7 @@ public class NativeTracking implements Tracker {
 	 * RectangleID 0: x = 122, y = 20, w = 45, h = 78.<br />
 	 * RectangleID 1: x = 23, y = 23, w = 100, h = 20.<br />
 	 * RectangleID 2: False alarm.
-	 * @return Return false if error occured, otherwise return true.
+	 * @return Return false if error occurred, otherwise return true.
 	 */
     @Override
 	public Object processTracking(byte[] image) {
