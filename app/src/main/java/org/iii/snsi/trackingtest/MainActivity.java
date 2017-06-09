@@ -189,7 +189,7 @@ public class MainActivity extends Activity{
 							int[] addarr = tracker.addTrackingObjects(preview, previewWidth, previewHeight, others);
 						}
 						/// tracking
-						int[] rects = tracker.processTracking(preview);
+						int[] rects = (int []) tracker.processTracking(preview);
 						// rect up-sampling
 						for(int i=0;i<rects.length;i+=5) {
 							int lx=rects[i + 1];
@@ -211,7 +211,7 @@ public class MainActivity extends Activity{
 					}
 					sleep(10);
 				}
-				tracker.releaseHandle();
+				tracker.release();
 			}
 		});
 		threadFlag = true;

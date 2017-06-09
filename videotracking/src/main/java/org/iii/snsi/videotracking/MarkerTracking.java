@@ -59,9 +59,10 @@ public class MarkerTracking extends NativeTracking {
      * @param rect The integer array that indecate retangle.
      * @return A postive rectangle id, return -1 if error occurred.
      */
-    public int[] addTrackingObjectsJPG(byte[] image, int size, int[] rect) {
         // image
-        Mat frame = convertARGB2MAT(image, size);
+    @Override
+    public int[] addTrackingObjectsJPG(byte[] image, int[] rect) {
+        Mat frame = convertARGB2MAT(image, image.length);
         Mat trackingImage = new Mat();
         imgWidth = frame.cols();
         imgHeight = frame.rows();
@@ -104,7 +105,8 @@ public class MarkerTracking extends NativeTracking {
      * @param ids The rectangle id that is returned by initTracking.
      * @return true if success, otherwise return false
      */
-    public boolean removeTrackingObject(int[] ids) {
+    @Override
+    public boolean removeTrackingObjects(int[] ids) {
         // Remove all tracking object
         trackingObjId = -1;
         objWCSPts.clear();
@@ -126,8 +128,9 @@ public class MarkerTracking extends NativeTracking {
      * RectangleID 2: False alarm.
      * @return Return false if error occured, otherwise return true.
      */
-    public int[] processTracking(byte[] image) {
         // image
+    @Override
+    public Object processTracking(byte[] image) {
         Mat mBGR = convertNV212MAT(image);
         Mat trackingImage = new Mat();
         imgWidth = mBGR.cols();

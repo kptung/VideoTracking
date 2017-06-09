@@ -1,8 +1,10 @@
 package org.iii.snsi.videotracking;
 
+import org.iii.snsi.tracking.Tracker;
 import org.opencv.core.Mat;
+import org.opencv.core.Point3;
 
-public class NativeTracking {
+public class NativeTracking implements Tracker {
 
 	static {
 		System.loadLibrary("videotracking");
@@ -43,6 +45,7 @@ public class NativeTracking {
 	 * @param rect The integer array that indecate retangle.
 	 * @return A postive rectangle id, return -1 if error occurred.
 	 */
+	@Override
 	public int[] addTrackingObjects(byte[] image, int width, int height,
 			int[] rect) {
 
@@ -64,18 +67,23 @@ public class NativeTracking {
 	 * @param rect The integer array that indecate retangle.
 	 * @return A postive rectangle id, return -1 if error occurred.
 	 */
-	public int[] addTrackingObjectsJPG(byte[] image, int size,
-			int[] rect) {
-
+	@Override
+	public int[] addTrackingObjectsJPG(byte[] image, int[] rect) {
 		if (firstRun) {
-			int[] result = initTrackingObjectsJPG(handle, image, size, rect);
+			int[] result = initTrackingObjectsJPG(handle, image, image.length,
+					rect);
 			if(result != null) {
 				firstRun = false;
 			}
 			return result;
 		}
 
-		return addTrackingObjectsJPG(handle, image, size, rect);
+		return addTrackingObjectsJPG(handle, image, image.length, rect);
+	}
+
+	@Override
+	public int[] addTrackingObjectsWCS(Point3[] objWCS, int w, int h) {
+		return null;
 	}
 
 	/**
@@ -84,7 +92,8 @@ public class NativeTracking {
 	 * @param ids The rectangle id that is returned by initTracking.
 	 * @return true if success, otherwise return false
 	 */
-	public boolean removeTrackingObject(int[] ids) {
+    @Override
+	public boolean removeTrackingObjects(int[] ids) {
 		return removeTrackingObjects(handle, ids);
 	}
 
@@ -98,19 +107,26 @@ public class NativeTracking {
 	 * RectangleID 2: False alarm.
 	 * @return Return false if error occured, otherwise return true.
 	 */
-	public int[] processTracking(byte[] image) {
+    @Override
+	public Object processTracking(byte[] image) {
 		return processTracking(handle, image);
-
 	}
 
 	/**
 	 * The function to release Tracking algorithm
 	 */
-	public void releaseHandle() {
+	@Override
+	public void release() {
 		releaseHandle(handle);
+		handle = -1;
 	}
 
-	/**
+    @Override
+    public boolean isNativeLibAvailable() {
+        return handle != -1;
+    }
+
+    /**
 	 * Native functions (will be implemented by C/C++)
 	 */
 	private native synchronized long createHandle();
@@ -143,5 +159,4 @@ public class NativeTracking {
 	protected native synchronized Mat convertARGB2MAT(byte[] argb, int size);
 
 	protected native synchronized Mat convertNV212MAT(byte[] yuv);
-
 }
