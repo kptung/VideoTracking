@@ -2,6 +2,7 @@ package org.iii.snsi.trackingtest;
 
 import android.app.Activity;
 import android.graphics.Rect;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -14,6 +15,8 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Button;
 
+import org.iii.snsi.multimedia.Camera2;
+import org.iii.snsi.multimedia.OldCamera;
 import org.iii.snsi.videotracking.NativeTracking;
 
 import java.util.ArrayList;
@@ -31,6 +34,7 @@ public class MainActivity extends Activity{
 	/// mCamera is to control camera; mView is to draw the rect when camera is opened
 	private SurfaceView surfaceView;
 	private OldCamera mCamera;
+	private Camera2 mCamera2;
 	private TouchView mView;
 
 	///  show the available drawing rect on touchview
@@ -91,9 +95,16 @@ public class MainActivity extends Activity{
 		mScreenWidth = displaymetrics.widthPixels;
 
 		// Show camera
-		mCamera = new OldCamera();
-		previewWidth=mCamera.getWidth();
-		previewHeight=mCamera.getHeight();
+		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
+			mCamera = new OldCamera();
+			previewWidth = mCamera.getWidth();
+			previewHeight = mCamera.getHeight();
+		} else {
+			mCamera2 = new Camera2(this);
+			previewWidth = mCamera2.getWidth();
+			previewHeight = mCamera2.getHeight();
+		}
+
 		wRatio=(float)previewWidth/mScreenWidth;
 		hRatio=(float)previewHeight/mScreenHeight;
 		/// draw camera view @ this surfaceview
@@ -107,16 +118,34 @@ public class MainActivity extends Activity{
 			@Override
 			public void onClick(View v) {
 				Log.i(TAG, "Open camera");
-				mCamera.openCamera();
 				SurfaceHolder holder = surfaceView.getHolder();
-				mCamera.setSurfaceHolder(holder);
-				mCamera.setCallbackFunction(new OldCamera.CallbackFrameListener(){
-					@Override
-					public void onCallback(byte[] data) {
-						preview=data;
-					}
-				});
-				mCamera.startPreview(true);
+				if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
+					mCamera.openCamera();
+					mCamera.setSurfaceHolder(holder);
+					mCamera.setCallbackFrameListener(
+							new OldCamera.CallbackFrameListener() {
+								@Override
+								public void onCallbackFrame(byte[] data,
+										int width, int height) {
+									preview = data;
+								}
+							});
+					mCamera.startPreview(true, false);
+				} else {
+					mCamera2.setPreviewFormat(10, 0);
+					mCamera2.setCallbackFrameListener(
+							new Camera2.CallbackFrameListener() {
+								@Override
+								public void onCallbackFrame(byte[] data,
+										int width, int height) {
+									preview = data;
+								}
+							});
+					mCamera2.setSurfaceHolder(holder);
+					mCamera2.openCamera();
+					mCamera2.startPreview(true, false);
+				}
+
 				tracker = new NativeTracking();
 			}
 		});
@@ -236,7 +265,11 @@ public class MainActivity extends Activity{
 
 		// start another activity
 		super.onDestroy();
-		mCamera.closeCamera();
+		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
+			mCamera.closeCamera();
+		} else {
+			mCamera2.closeCamera();
+		}
 		threadFlag = false;
 	}
 

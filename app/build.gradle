@@ -32,4 +32,5 @@ dependencies {
     compile(name: 'lib-util-release', ext: 'aar')
     compile(name: 'lib-opencv-3.2.0-release', ext: 'aar')
     compile(name: 'lib-irglass-release', ext: 'aar')
+    compile(name: 'streamlibrary-release', ext: 'aar')
 }
