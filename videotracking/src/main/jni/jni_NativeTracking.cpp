@@ -665,7 +665,7 @@ JNIEXPORT jobject JNICALL Java_org_iii_snsi_videotracking_NativeTracking_convert
 
 	// Release pointer
 	env->DeleteLocalRef(classCvMat);
-
+    env->ReleaseByteArrayElements(jargb, frame, 0);
 	return objCvMat;
   }
 
@@ -695,7 +695,7 @@ JNIEXPORT jobject JNICALL Java_org_iii_snsi_videotracking_NativeTracking_convert
 
 	// Release pointer
 	env->DeleteLocalRef(classCvMat);
-
+    env->ReleaseByteArrayElements(jyuv, frame, 0);
 	return objCvMat;
   }
 
