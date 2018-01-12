@@ -132,7 +132,6 @@ public class MainActivity extends Activity{
 							});
 					mCamera.startPreview(true, false);
 				} else {
-					mCamera2.setPreviewFormat(10, 0);
 					mCamera2.setCallbackFrameListener(
 							new Camera2.CallbackFrameListener() {
 								@Override
@@ -143,7 +142,7 @@ public class MainActivity extends Activity{
 							});
 					mCamera2.setSurfaceHolder(holder);
 					mCamera2.openCamera();
-					mCamera2.startPreview(true, false);
+					mCamera2.startPreview(true, true, false);
 				}
 
 				tracker = new NativeTracking();
