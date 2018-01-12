@@ -1,0 +1,117 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Header Files\cmt">
+      <UniqueIdentifier>{a4d22e9b-b8df-4d71-b685-c58f8fef7a95}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\dat">
+      <UniqueIdentifier>{20f311ac-4abc-4a97-ae1a-82215daef7d4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\csk">
+      <UniqueIdentifier>{5578439e-1f91-4877-b6a4-fafaa7c86640}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\skcf">
+      <UniqueIdentifier>{f4eaaac5-b2c3-462e-8228-12a7f917d7ad}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\kcf">
+      <UniqueIdentifier>{4af25eb8-be65-43da-9ccf-a0e9c5671a18}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\ct">
+      <UniqueIdentifier>{7b6e93f7-097f-4adc-8d1c-53dd41eedca7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\stc">
+      <UniqueIdentifier>{e69549fd-f59b-43d6-8de8-269c930715eb}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="test_win32.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="HMD_AbstractTracker.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="common.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="HMD_AbstractTracker.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="HMD_TrackerCMT.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="HMD_TrackerKCF.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="HMD_TrackerTM.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="timer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cmt\CMT.h">
+      <Filter>Header Files\cmt</Filter>
+    </ClInclude>
+    <ClInclude Include="HMD_TrackerDAT.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="dat\dat_tracker.hpp">
+      <Filter>Header Files\dat</Filter>
+    </ClInclude>
+    <ClInclude Include="csk\csk.h">
+      <Filter>Header Files\csk</Filter>
+    </ClInclude>
+    <ClInclude Include="HMD_TrackerCSK.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="skcf\ffttools.hpp">
+      <Filter>Header Files\skcf</Filter>
+    </ClInclude>
+    <ClInclude Include="skcf\fhog.hpp">
+      <Filter>Header Files\skcf</Filter>
+    </ClInclude>
+    <ClInclude Include="skcf\kcftracker.hpp">
+      <Filter>Header Files\skcf</Filter>
+    </ClInclude>
+    <ClInclude Include="skcf\labdata.hpp">
+      <Filter>Header Files\skcf</Filter>
+    </ClInclude>
+    <ClInclude Include="skcf\recttools.hpp">
+      <Filter>Header Files\skcf</Filter>
+    </ClInclude>
+    <ClInclude Include="skcf\tracker.h">
+      <Filter>Header Files\skcf</Filter>
+    </ClInclude>
+    <ClInclude Include="HMD_TrackerSKCF.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="kcf\featureColorName.hpp">
+      <Filter>Header Files\kcf</Filter>
+    </ClInclude>
+    <ClInclude Include="kcf\III_TrackerKCFImpl.hpp">
+      <Filter>Header Files\kcf</Filter>
+    </ClInclude>
+    <ClInclude Include="ct\CompressiveTracker.h">
+      <Filter>Header Files\ct</Filter>
+    </ClInclude>
+    <ClInclude Include="HMD_TrackerSTC.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="stc\STCTracker.h">
+      <Filter>Header Files\stc</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
