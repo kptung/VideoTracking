@@ -2,6 +2,13 @@
 #include "HMD_TrackerTM.hpp"
 #include "HMD_TrackerKCF.hpp"
 #include "HMD_TrackerCMT.hpp"
+#include "HMD_TrackerCSK.hpp"
+#include "HMD_TrackerDAT.hpp"
+#include "HMD_TrackerSKCF.hpp"
+#include "HMD_TrackerCT.hpp"
+#include "HMD_TrackerSTC.hpp"
+/*#include "HMD_TrackerBACF.hpp"*/
+
 using namespace cv;
 using namespace std;
 
@@ -15,19 +22,41 @@ T_HANDLE CreateVideoTracker( int type )
 	switch( type )
 	{
 	case 0:
-
 		pTracker = new TrackerTM();
 		break;
 
-	case 1:
-
-		pTracker = new HMD_TrackerKCF();
+	// coded by jimchen
+	case 1: //2015 CVPR
+		pTracker = new HMD_TrackerKCF(); 
 		break;
-
-    case 2:
-
+	
+    case 2: //2015 CVPR
     	pTracker = new TrackerCMT();
     	break;
+
+    case 3: //2015 CVPR
+    	pTracker = new TrackerDAT();
+    	break;
+
+	case 5: //2012 ECCV
+		pTracker = new TrackerCSK();
+		break;
+
+	case 6: //2015 SAMF's simple version with 3 scales 
+		pTracker = new TrackerSKCF();
+		break;
+
+	case 7: //2012 ECCV 
+		pTracker = new TrackerCT();
+		break;
+
+	case 8: //20xx 
+		pTracker = new TrackerSTC();
+		break;
+
+// 	case 9: //2017 cvpr 
+// 		pTracker = new TrackerBACF();
+// 		break;
 
 	default:
 		break;

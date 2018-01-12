@@ -20,10 +20,14 @@
 #include <numeric>
 #include <functional>
 #include "HMD_AbstractTracker.hpp"
-#include "III_TrackerKCFImpl.hpp"
+#include "kcf/III_TrackerKCFImpl.hpp"
 
 using namespace cv;
 using namespace std;
+
+/************************************************************************/
+/* OpenCV version without scale estimation                              */
+/************************************************************************/
 
 class HMD_TrackerKCF :
 	public AbstractTracker

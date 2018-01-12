@@ -12,9 +12,10 @@
 #include <stdlib.h>     /* NULL */
 #include <assert.h>     /* assert */
 
+#ifdef ANDROID
 #include <jni.h>
 #include <android/log.h>
-
+#endif
 
 #define _CRT_SECURE_NO_WARNINGS
 

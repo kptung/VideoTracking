@@ -15,12 +15,12 @@
 #include <iostream>
 #include <iomanip>
 
-#define LOG_NDEBUG 0
+#define LOG_NDEBUG 1
 #define LOG_TAG "JNI_NativeTracking"
 #define LOGD(...) ((void)__android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__))
 
-#define JNI_DBG 0
-#define VIDEO_TRACKING_LIB_VERSION 0.03
+#define JNI_DBG 1
+#define VIDEO_TRACKING_LIB_VERSION 0.1
 #define MIN_RECT_VALUE 14
 
 #ifndef JPG
@@ -87,7 +87,15 @@ extern "C" {
 		trackingObjects.clear();
 		if (JNI_DBG)
 			LOGD("CreateVideoTracker");
-		return (jlong)CreateVideoTracker(2);
+		/********** tracking method ***********/
+		// 0: TM
+		// 1: KCF by jimchen transfered on OpenCV
+		// 2: CMT
+		// 3: DAT
+		// 5: CSK
+		// 6: SKCF
+		return (jlong)CreateVideoTracker(6);
+		/***********************************/
 	}
 
 	/*

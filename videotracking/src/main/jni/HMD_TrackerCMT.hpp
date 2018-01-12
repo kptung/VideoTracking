@@ -24,7 +24,7 @@
 #include <functional>
 
 #include "HMD_AbstractTracker.hpp"
-#include "CMT.h"
+#include "cmt/CMT.h"
 
 using namespace cv;
 using namespace std;
@@ -64,7 +64,7 @@ public:
 			cv::Point2f initBottomDown(roi.x + roi.width - 1, roi.y + roi.height - 1);
 			CMT cmt;
 			cmt.initialise(im_gray, initTopLeft, initBottomDown);
-			cmt.processFrame(im_gray);
+			//cmt.processFrame(im_gray);
 			m_tracker.insert(std::make_pair(obj_id, cmt));
 		}
 		return obj_id;

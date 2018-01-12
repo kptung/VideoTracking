@@ -48,7 +48,7 @@ public:
 	}
 
 
-	~AbstractTracker ()
+	virtual ~AbstractTracker ()
 	{
 	}
 
