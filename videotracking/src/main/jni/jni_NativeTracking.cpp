@@ -94,7 +94,7 @@ extern "C" {
 		// 3: DAT
 		// 5: CSK
 		// 6: SKCF
-		return (jlong)CreateVideoTracker(6);
+		return (jlong)CreateVideoTracker(2);
 		/***********************************/
 	}
 
