@@ -1,8 +1,7 @@
 package org.iii.snsi.videotracking;
 
+import org.iii.snsi.tracking.Point3D;
 import org.iii.snsi.tracking.Tracker;
-import org.opencv.core.Mat;
-import org.opencv.core.Point3;
 
 public class NativeTracking implements Tracker {
 
@@ -37,7 +36,7 @@ public class NativeTracking implements Tracker {
 	}
 
 	/**
-	 * Processing Camshit to track rectangles
+	 * Processing Camshift to track rectangles
 	 *
 	 * @param image The NV21 image.
 	 * @param width The image width.
@@ -61,7 +60,7 @@ public class NativeTracking implements Tracker {
 	}
 
 	/**
-	 * Processing Camshit to track rectangles
+	 * Processing Camshift to track rectangles
 	 *
 	 * @param image The ARGB image.
 	 * @param rect The integer array that indicate rectangle.
@@ -82,7 +81,7 @@ public class NativeTracking implements Tracker {
 	}
 
 	@Override
-	public int[] addTrackingObjectsWCS(Point3[] objWCS, int w, int h) {
+	public int[] addTrackingObjectsWCS(Point3D[] objWCS, int w, int h) {
 		return null;
 	}
 
@@ -98,7 +97,7 @@ public class NativeTracking implements Tracker {
 	}
 
 	/**
-	 * Processing Camshit to track rectangles
+	 * Processing Camshift to track rectangles
 	 *
 	 * @param image The NV21 image. i.e.
 	 * [0,122,20,45,78,1,23,23,100,20,2,-1,-1,-1,-1] means the following:
@@ -156,7 +155,7 @@ public class NativeTracking implements Tracker {
 
 	public native synchronized byte[] convertRGBA2YUV(int width, int height, byte[] bgra);
 
-	protected native synchronized Mat convertARGB2MAT(byte[] argb, int size);
-
-	protected native synchronized Mat convertNV212MAT(byte[] yuv);
+//	protected native synchronized Mat convertARGB2MAT(byte[] argb, int size);
+//
+//	protected native synchronized Mat convertNV212MAT(byte[] yuv);
 }
