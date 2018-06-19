@@ -272,6 +272,8 @@ extern "C" {
 			if (JNI_DBG) {
 				LOGD("image convert fail");
 			}
+
+            env->ReleaseByteArrayElements(jimage, frame, 0);
 			return NULL;
 		}
 
@@ -298,6 +300,10 @@ extern "C" {
 				if (JNI_DBG) {
 					LOGD("Rect Object is too small, width %d height %d", target.width, target.height);
 				}
+
+				env->ReleaseIntArrayElements(jrects, jrectsArrayData, 0);
+                env->ReleaseIntArrayElements(jids, jidsArrayData, 0);
+                env->DeleteLocalRef(jids);
 				return NULL;
 			}
 			if (JNI_DBG)
@@ -362,6 +368,8 @@ extern "C" {
 			if (JNI_DBG) {
 				LOGD("image convert fail");
 			}
+
+			env->ReleaseByteArrayElements(jimage, frame, 0);
 			return NULL;
 		}
 
@@ -385,6 +393,10 @@ extern "C" {
 				if (JNI_DBG) {
 					LOGD("Rect Object is too small, width %d height %d", target.width, target.height);
 				}
+
+				env->ReleaseIntArrayElements(jrects, jrectsArrayData, 0);
+                env->ReleaseIntArrayElements(jids, jidsArrayData, 0);
+                env->DeleteLocalRef(jids);
 				return NULL;
 			}
 			if (JNI_DBG)
@@ -489,6 +501,8 @@ extern "C" {
 			if (JNI_DBG) {
 				LOGD("image convert fail");
 			}
+
+			env->ReleaseByteArrayElements(jimage, frame, 0);
 			return NULL;
 		}
 
@@ -535,7 +549,6 @@ extern "C" {
 		/* result data (jint Array) */
 		jintArray jIdsRects = env->NewIntArray(results.size() * 5);
 		env->SetIntArrayRegion(jIdsRects, 0, results.size() * 5, buf_result);
-
 		env->ReleaseByteArrayElements(jimage, frame, 0);
 
 		// For debug Image
