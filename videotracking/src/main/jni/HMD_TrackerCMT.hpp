@@ -97,18 +97,18 @@ public:
 			cmt.processFrame(im_gray);
 			int width = cmt.topRight.x - cmt.topLeft.x + 1;
 			int height = cmt.bottomLeft.y - cmt.topLeft.y + 1;
-			Rect match_roi(cmt.topLeft.x, cmt.topLeft.y, width, height);
+			cv::Rect match_roi(cmt.topLeft.x, cmt.topLeft.y, width, height);
 			cv::Rect match = match_roi;
 			match.x *= ratio;
 			match.y *= ratio;
 			match.width *= ratio;
 			match.height *= ratio;
-			//bool tracked = (match.x < 0 || match.x >= target.cols || match.y < 0 || match.y >= target.cols || match.width<0 || match.width>target.cols || match.height<0 || match.height>target.rows) ? false : true;
-			//if (tracked)
-			//{
-			objects.insert(std::make_pair(itr->first, match));
-			m_tracker.at(itr->first) = cmt;
-			//}
+			bool tracked = (match.x < 0 || match.x >= target.cols || match.y < 0 || match.y >= target.cols || match.width<0 || match.width>target.cols || match.height<0 || match.height>target.rows) ? false : true;
+			if (tracked)
+			{
+				objects.insert(std::make_pair(itr->first, match));
+				m_tracker.at(itr->first) = cmt;
+			}
 		}
 		
 
