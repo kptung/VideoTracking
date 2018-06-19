@@ -19,6 +19,7 @@ import org.iii.snsi.multimedia.Camera2;
 import org.iii.snsi.multimedia.OldCamera;
 import org.iii.snsi.videotracking.NativeTracking;
 
+import java.io.File;
 import java.util.ArrayList;
 
 import static android.content.ContentValues.TAG;
@@ -129,6 +130,10 @@ public class MainActivity extends Activity{
 										int width, int height) {
 									preview = data;
 								}
+								@Override
+								public void onCallbackPicture(File file) {
+
+								}
 							});
 					mCamera.startPreview(true, false);
 				} else {
@@ -138,6 +143,11 @@ public class MainActivity extends Activity{
 								public void onCallbackFrame(byte[] data,
 										int width, int height) {
 									preview = data;
+								}
+
+								@Override
+								public void onCallbackPicture(File file) {
+
 								}
 							});
 					mCamera2.setSurfaceHolder(holder);
