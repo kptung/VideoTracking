@@ -1,13 +1,13 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion 23
-    buildToolsVersion '25.0.2'
+    compileSdkVersion 27
+    buildToolsVersion '27.0.3'
 
     defaultConfig {
         applicationId "org.iii.snsi.trackingtest"
         minSdkVersion 19
-        targetSdkVersion 23
+        targetSdkVersion 27
         versionCode 1
         versionName "1.0"
     }
@@ -25,12 +25,12 @@ android {
 }
 
 dependencies {
-    compile fileTree(include: ['*.jar'], dir: 'libs')
-    testCompile 'junit:junit:4.12'
-    compile 'com.android.support:appcompat-v7:23.4.0'
-    compile project(':videotracking')
-    compile(name: 'lib-util-release', ext: 'aar')
-    compile(name: 'lib-opencv-3.2.0-release', ext: 'aar')
-    compile(name: 'lib-irglass-release', ext: 'aar')
-    compile(name: 'streamlibrary-release', ext: 'aar')
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    testImplementation 'junit:junit:4.12'
+    implementation 'com.android.support:appcompat-v7:27.1.1'
+    api project(':videotracking')
+    implementation(name: 'lib-util-release', ext: 'aar')
+    implementation(name: 'lib-opencv-3.2.0-release', ext: 'aar')
+    implementation(name: 'lib-irglass-release', ext: 'aar')
+    api(name: 'streamlibrary-release', ext: 'aar')
 }

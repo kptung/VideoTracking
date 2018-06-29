@@ -139,7 +139,7 @@ public class TouchView extends View {
 
 	// Draws the bounding box on the canvas. Every time invalidate() is called
 	// this onDraw method is called.
-	public void onDraw(Canvas canvas) {
+	protected void onDraw(Canvas canvas) {
 		super.onDraw(canvas);
 		if(!trackflag)
 		{
@@ -420,7 +420,6 @@ public class TouchView extends View {
 
 	}
 	private class ScaleListener extends ScaleGestureDetector.SimpleOnScaleGestureListener {
-		@Override
 		public boolean onScale(ScaleGestureDetector detector) {
 			mScaleFactor *= detector.getScaleFactor();
 

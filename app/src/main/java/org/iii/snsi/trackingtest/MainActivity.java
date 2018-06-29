@@ -61,8 +61,8 @@ public class MainActivity extends Activity{
 	private int trackcount=0;
 
 	/// multi-objs tracking initialization
-	ArrayList<Integer> rect = new ArrayList();
-	ArrayList<Integer> other = new ArrayList();
+	ArrayList<Integer> rect = new ArrayList<Integer>();
+	ArrayList<Integer> other = new ArrayList<Integer>();
 
 	/// the flag to open camera
 	private boolean cameraflag=false;
