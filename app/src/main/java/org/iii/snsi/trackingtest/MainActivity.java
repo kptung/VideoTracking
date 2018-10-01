@@ -227,7 +227,7 @@ public class MainActivity extends Activity{
 							int[] addarr = tracker.addTrackingObjects(preview, previewWidth, previewHeight, others);
 						}
 						/// tracking
-						int[] rects = (int []) tracker.processTracking(preview);
+						int[] rects = (int []) tracker.processTracking(preview, NativeTracking.FORMAT_NV21);
 						// rect up-sampling
 						for(int i=0;i<rects.length;i+=5) {
 							int lx=rects[i + 1];

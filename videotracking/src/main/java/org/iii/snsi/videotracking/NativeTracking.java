@@ -11,6 +11,9 @@ public class NativeTracking implements Tracker {
 
 	protected long handle;
 	protected boolean firstRun = true;
+	public static final int FORMAT_NV21 = 1;
+	public static final int FORMAT_YUV420P = 2;
+	public static final int FORMAT_GRAY = 3;
 
 	/**
 	 * Constructor
@@ -107,8 +110,8 @@ public class NativeTracking implements Tracker {
 	 * @return Return false if error occurred, otherwise return true.
 	 */
     @Override
-	public Object processTracking(byte[] image) {
-		return processTracking(handle, image);
+	public Object processTracking(byte[] image, int format) {
+		return processTracking(handle, image, format);
 	}
 
 	/**
@@ -145,7 +148,7 @@ public class NativeTracking implements Tracker {
 	protected native synchronized boolean removeTrackingObjects(long handle,
 			int[] ids);
 
-	protected native synchronized int[] processTracking(long handle, byte[] image);
+	protected native synchronized int[] processTracking(long handle, byte[] image, int frameFormat);
 
 	private native synchronized boolean releaseHandle(long handle);
 

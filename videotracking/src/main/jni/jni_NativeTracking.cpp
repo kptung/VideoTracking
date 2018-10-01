@@ -19,7 +19,7 @@
 #define LOG_TAG "JNI_NativeTracking"
 #define LOGD(...) ((void)__android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__))
 
-#define JNI_DBG 1
+#define JNI_DBG 0
 #define VIDEO_TRACKING_LIB_VERSION 0.1
 #define MIN_RECT_VALUE 14
 
@@ -77,32 +77,38 @@ extern "C" {
 
 	bool operator ! (const Mat&m) { return m.empty(); }
 
+	enum FrameFormat {
+		FRAME_NV21 = 1,
+		FRAME_YUV420P = 2,
+		FRAME_GRAY = 3,
+	};
+
 	/*
-	 * Class:     org_iii_snsi_videotracking_NativeTracking
-	 * Method:    createHandle
-	 * Signature: ()J
-	 */
+	* Class:     org_iii_snsi_videotracking_NativeTracking
+	* Method:    createHandle
+	* Signature: ()J
+	*/
 	JNIEXPORT jlong JNICALL Java_org_iii_snsi_videotracking_NativeTracking_createHandle
 	(JNIEnv *env, jobject jNativeTracking) {
 		trackingObjects.clear();
 		if (JNI_DBG)
 			LOGD("CreateVideoTracker");
 		/********** tracking method ***********/
-		// 0: TM
-		// 1: KCF by jimchen transfered on OpenCV
-		// 2: CMT
-		// 3: DAT
-		// 5: CSK
-		// 6: SKCF
+		// 0: TM //color
+		// 1: KCF by jimchen transfered on OpenCV //color
+		// 2: CMT //gray
+		// 3: DAT //color
+		// 5: CSK // gray
+		// 6: SKCF // color
 		return (jlong)CreateVideoTracker(2);
 		/***********************************/
 	}
 
 	/*
-	 * Class:     org_iii_snsi_videotracking_NativeTracking
-	 * Method:    initTrackingObjects
-	 * Signature: (J[BII[I)[I
-	 */
+	* Class:     org_iii_snsi_videotracking_NativeTracking
+	* Method:    initTrackingObjects
+	* Signature: (J[BII[I)[I
+	*/
 
 	JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_initTrackingObjectsJPG
 	(JNIEnv *env, jobject jNativeTracking, jlong jhandle, jbyteArray jimage, jint jsize, jintArray jrects) {
@@ -145,10 +151,10 @@ extern "C" {
 		if (JNI_DBG)
 			LOGD("initTrackingObjects, Rect width %d height %d", rec.width, rec.height);
 		timer.Reset();
-        timer.Start();
-        jidsArrayData[0] = SetTrackingTarget((T_HANDLE)jhandle, image, rec);
-        timer.Pause();
-        trackingObjects.insert(make_pair(jidsArrayData[0], image(rec).clone()));
+		timer.Start();
+		jidsArrayData[0] = SetTrackingTarget((T_HANDLE)jhandle, image, rec);
+		timer.Pause();
+		trackingObjects.insert(make_pair(jidsArrayData[0], image(rec).clone()));
 		/* return the init rect array*/
 		int* buf_result = new int[5 * (jrectsLength / 4)];
 		buf_result[0] = jidsArrayData[0];
@@ -177,10 +183,10 @@ extern "C" {
 	}
 
 	/*
-	 * Class:     org_iii_snsi_videotracking_NativeTracking
-	 * Method:    initTrackingObjects
-	 * Signature: (J[BII[I)[I
-	 */
+	* Class:     org_iii_snsi_videotracking_NativeTracking
+	* Method:    initTrackingObjects
+	* Signature: (J[BII[I)[I
+	*/
 
 	JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_initTrackingObjects
 	(JNIEnv *env, jobject jNativeTracking, jlong jhandle, jbyteArray jimage, jint jwidth, jint jheight, jintArray jrects) {
@@ -224,7 +230,7 @@ extern "C" {
 		if (JNI_DBG)
 			LOGD("initTrackingObjects, Rect width %d height %d", rec.width, rec.height);
 		timer.Reset();
-        timer.Start();
+		timer.Start();
 		jidsArrayData[0] = SetTrackingTarget((T_HANDLE)jhandle, image, rec);
 		timer.Pause();
 		trackingObjects.insert(make_pair(jidsArrayData[0], myuv(rec).clone()));
@@ -257,10 +263,10 @@ extern "C" {
 	}
 
 	/*
-	 * Class:     org_iii_snsi_videotracking_NativeTracking
-	 * Method:    addTrackingObjects
-	 * Signature: (J[B[I)[I
-	 */
+	* Class:     org_iii_snsi_videotracking_NativeTracking
+	* Method:    addTrackingObjects
+	* Signature: (J[B[I)[I
+	*/
 	JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_addTrackingObjectsJPG
 	(JNIEnv *env, jobject jNativeTracking, jlong jhandle, jbyteArray jimage, jint jsize, jintArray jrects) {
 
@@ -273,7 +279,7 @@ extern "C" {
 				LOGD("image convert fail");
 			}
 
-            env->ReleaseByteArrayElements(jimage, frame, 0);
+			env->ReleaseByteArrayElements(jimage, frame, 0);
 			return NULL;
 		}
 
@@ -302,14 +308,14 @@ extern "C" {
 				}
 
 				env->ReleaseIntArrayElements(jrects, jrectsArrayData, 0);
-                env->ReleaseIntArrayElements(jids, jidsArrayData, 0);
-                env->DeleteLocalRef(jids);
+				env->ReleaseIntArrayElements(jids, jidsArrayData, 0);
+				env->DeleteLocalRef(jids);
 				return NULL;
 			}
 			if (JNI_DBG)
 				LOGD("AddTrackingTarget, Rect width %d height %d", target.width, target.height);
 			timer.Reset();
-            timer.Start();
+			timer.Start();
 			jidsArrayData[j] = AddTrackingTarget((T_HANDLE)jhandle, image, target);
 			timer.Pause();
 			trackingObjects.insert(make_pair(jidsArrayData[j], image(target).clone()));
@@ -352,10 +358,10 @@ extern "C" {
 	}
 
 	/*
-	 * Class:     org_iii_snsi_videotracking_NativeTracking
-	 * Method:    addTrackingObjects
-	 * Signature: (J[B[I)[I
-	 */
+	* Class:     org_iii_snsi_videotracking_NativeTracking
+	* Method:    addTrackingObjects
+	* Signature: (J[B[I)[I
+	*/
 	JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_addTrackingObjects
 	(JNIEnv *env, jobject jNativeTracking, jlong jhandle, jbyteArray jimage, jintArray jrects) {
 
@@ -395,15 +401,15 @@ extern "C" {
 				}
 
 				env->ReleaseIntArrayElements(jrects, jrectsArrayData, 0);
-                env->ReleaseIntArrayElements(jids, jidsArrayData, 0);
-                env->DeleteLocalRef(jids);
+				env->ReleaseIntArrayElements(jids, jidsArrayData, 0);
+				env->DeleteLocalRef(jids);
 				return NULL;
 			}
 			if (JNI_DBG)
 				LOGD("AddTrackingTarget, Rect width %d height %d", target.width, target.height);
 
 			timer.Reset();
-            timer.Start();
+			timer.Start();
 			jidsArrayData[j] = AddTrackingTarget((T_HANDLE)jhandle, image, target);
 			timer.Pause();
 			trackingObjects.insert(make_pair(jidsArrayData[j], myuv(target).clone()));
@@ -445,10 +451,10 @@ extern "C" {
 	}
 
 	/*
-	 * Class:     org_iii_snsi_videotracking_NativeTracking
-	 * Method:    removeTrackingObjects
-	 * Signature: (J[I)Z
-	 */
+	* Class:     org_iii_snsi_videotracking_NativeTracking
+	* Method:    removeTrackingObjects
+	* Signature: (J[I)Z
+	*/
 	JNIEXPORT jboolean JNICALL Java_org_iii_snsi_videotracking_NativeTracking_removeTrackingObjects
 	(JNIEnv *env, jobject jNativeTracking, jlong jhandle, jintArray jids) {
 		bool result = false;
@@ -482,20 +488,58 @@ extern "C" {
 	}
 
 	/*
-	 * Class:     org_iii_snsi_videotracking_NativeTracking
-	 * Method:    processTracking
-	 * Signature: (J[B)[I
-	 */
+	* Class:     org_iii_snsi_videotracking_NativeTracking
+	* Method:    processTracking
+	* Signature: (J[B)[I
+	*/
 	JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_processTracking
-	(JNIEnv *env, jobject jNativeTracking, jlong jhandle, jbyteArray jimage) {
+	(JNIEnv *env, jobject jNativeTracking, jlong jhandle, jbyteArray jimage, jint frame_format) {
+
+		if (JNI_DBG) {
+			LOGD("processTracking In");
+		}
 
 		if (trackingObjects.empty())
 			return NULL;
 
+		if (JNI_DBG) {
+			LOGD("processTracking In2");
+		}
+
 		jbyte* frame = env->GetByteArrayElements(jimage, 0);
 		Mat image;
-		Mat myuv(imgHeight + imgHeight / 2, imgWidth, CV_8UC1, (uchar *)frame);
-		cv::cvtColor(myuv, image, CV_YUV420sp2BGR);
+		int data_rows;
+		int data_cols;
+		switch (frame_format) {
+		case FRAME_NV21:
+			data_rows = imgHeight * 3 / 2;
+			break;
+		case FRAME_YUV420P:
+			data_rows = imgHeight * 3 / 2;
+			break;
+		case FRAME_GRAY:
+			data_rows = imgHeight;
+			break;
+		}
+
+		data_cols = imgWidth;
+		Mat myuv(data_rows, data_cols, CV_8UC1, (uchar *)frame);
+		switch (frame_format) {
+		case FRAME_NV21:
+			cv::cvtColor(myuv, image, CV_YUV420sp2GRAY);
+			break;
+		case FRAME_YUV420P:
+			cv::cvtColor(myuv, image, CV_YUV420p2GRAY);
+			break;
+		case FRAME_GRAY:
+			image = myuv.clone();
+			  break;
+		}
+
+		if (JNI_DBG) {
+			LOGD("data_rows = %d\n", data_rows);
+			LOGD("data_cols = %d\n", data_cols);
+		}
 
 		if (!image) {
 			if (JNI_DBG) {
@@ -561,10 +605,10 @@ extern "C" {
 	}
 
 	/*
-	 * Class:     org_iii_snsi_videotracking_NativeTracking
-	 * Method:    releaseHandle
-	 * Signature: (J)Z
-	 */
+	* Class:     org_iii_snsi_videotracking_NativeTracking
+	* Method:    releaseHandle
+	* Signature: (J)Z
+	*/
 	JNIEXPORT jboolean JNICALL Java_org_iii_snsi_videotracking_NativeTracking_releaseHandle
 	(JNIEnv *env, jobject jNativeTracking, jlong jhandle) {
 		trackingObjects.clear();
@@ -574,10 +618,10 @@ extern "C" {
 	}
 
 	/*
-	 * Class:     org_iii_snsi_videotracking_NativeTracking
-	 * Method:    getTrackingObjImg
-	 * Signature: (I)[B
-	 */
+	* Class:     org_iii_snsi_videotracking_NativeTracking
+	* Method:    getTrackingObjImg
+	* Signature: (I)[B
+	*/
 	JNIEXPORT jbyteArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_getTrackingObjImg
 	(JNIEnv *env, jobject jNativeTracking, jint jobjectID) {
 
@@ -605,10 +649,10 @@ extern "C" {
 	}
 
 	/*
-	 * Class:     org_iii_snsi_videotracking_NativeTracking
-	 * Method:    convertYUV2RGBA
-	 * Signature: (II[B)[I
-	 */
+	* Class:     org_iii_snsi_videotracking_NativeTracking
+	* Method:    convertYUV2RGBA
+	* Signature: (II[B)[I
+	*/
 	JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_convertYUV2RGBA
 	(JNIEnv *env, jobject jNativeTracking, jint jwidth, jint jheight, jbyteArray jyuv) {
 
@@ -633,10 +677,10 @@ extern "C" {
 	}
 
 	/*
-	 * Class:     org_iii_snsi_videotracking_NativeTracking
-	 * Method:    convertRGBA2YUV
-	 * Signature: (II[I)[B
-	 */
+	* Class:     org_iii_snsi_videotracking_NativeTracking
+	* Method:    convertRGBA2YUV
+	* Signature: (II[I)[B
+	*/
 	JNIEXPORT jbyteArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_convertRGBA2YUV
 	(JNIEnv *env, jobject jNativeTracking, jint jwidth, jint jheight, jintArray jbgra) {
 
@@ -659,66 +703,66 @@ extern "C" {
 
 	}
 
-/*
- * Class:     org_iii_snsi_videotracking_NativeTracking
- * Method:    convertARGB2MAT
- * Signature: ([BIJ)Lorg/opencv/core/Mat;
- */
-JNIEXPORT jobject JNICALL Java_org_iii_snsi_videotracking_NativeTracking_convertARGB2MAT
-  (JNIEnv *env, jobject jNativeTracking, jbyteArray jargb, jint jsize) {
-	// Get a class reference
-	jclass classCvMat = env->FindClass("org/opencv/core/Mat");
+	/*
+	* Class:     org_iii_snsi_videotracking_NativeTracking
+	* Method:    convertARGB2MAT
+	* Signature: ([BIJ)Lorg/opencv/core/Mat;
+	*/
+	JNIEXPORT jobject JNICALL Java_org_iii_snsi_videotracking_NativeTracking_convertARGB2MAT
+	(JNIEnv *env, jobject jNativeTracking, jbyteArray jargb, jint jsize) {
+		// Get a class reference
+		jclass classCvMat = env->FindClass("org/opencv/core/Mat");
 
-	// Get the Field ID of the instance variables
-	jmethodID matInit = env->GetMethodID(classCvMat, "<init>", "()V");
-	jmethodID getPtrMethod = env->GetMethodID(classCvMat, "getNativeObjAddr", "()J");
+		// Get the Field ID of the instance variables
+		jmethodID matInit = env->GetMethodID(classCvMat, "<init>", "()V");
+		jmethodID getPtrMethod = env->GetMethodID(classCvMat, "getNativeObjAddr", "()J");
 
-	// Construct and return Mat
-	jobject objCvMat = env->NewObject(classCvMat, matInit);
-	Mat& matImage = *(Mat*)env->CallLongMethod(objCvMat, getPtrMethod);
+		// Construct and return Mat
+		jobject objCvMat = env->NewObject(classCvMat, matInit);
+		Mat& matImage = *(Mat*)env->CallLongMethod(objCvMat, getPtrMethod);
 
-	jbyte* frame = env->GetByteArrayElements(jargb, 0);
-	Mat rawData = Mat(1, jsize, CV_8UC1, (uchar *)frame);
-	matImage = imdecode(rawData, IMREAD_COLOR);
+		jbyte* frame = env->GetByteArrayElements(jargb, 0);
+		Mat rawData = Mat(1, jsize, CV_8UC1, (uchar *)frame);
+		matImage = imdecode(rawData, IMREAD_COLOR);
 
-	imgHeight = (int)matImage.rows;
-	imgWidth = (int)matImage.cols;
+		imgHeight = (int)matImage.rows;
+		imgWidth = (int)matImage.cols;
 
-	// Release pointer
-	env->DeleteLocalRef(classCvMat);
-    env->ReleaseByteArrayElements(jargb, frame, 0);
-	return objCvMat;
-  }
+		// Release pointer
+		env->DeleteLocalRef(classCvMat);
+		env->ReleaseByteArrayElements(jargb, frame, 0);
+		return objCvMat;
+	}
 
-/*
- * Class:     org_iii_snsi_videotracking_NativeTracking
- * Method:    convertNV212MAT
- * Signature: ([BJ)Lorg/opencv/core/Mat;
- */
-JNIEXPORT jobject JNICALL Java_org_iii_snsi_videotracking_NativeTracking_convertNV212MAT
-  (JNIEnv *env, jobject jNativeTracking, jbyteArray jyuv) {
-	// Get a class reference
-	jclass classCvMat = env->FindClass("org/opencv/core/Mat");
+	/*
+	* Class:     org_iii_snsi_videotracking_NativeTracking
+	* Method:    convertNV212MAT
+	* Signature: ([BJ)Lorg/opencv/core/Mat;
+	*/
+	JNIEXPORT jobject JNICALL Java_org_iii_snsi_videotracking_NativeTracking_convertNV212MAT
+	(JNIEnv *env, jobject jNativeTracking, jbyteArray jyuv) {
+		// Get a class reference
+		jclass classCvMat = env->FindClass("org/opencv/core/Mat");
 
-	// Get the Field ID of the instance variables
-	jmethodID matInit = env->GetMethodID(classCvMat, "<init>", "()V");
-	jmethodID getPtrMethod = env->GetMethodID(classCvMat, "getNativeObjAddr", "()J");
+		// Get the Field ID of the instance variables
+		jmethodID matInit = env->GetMethodID(classCvMat, "<init>", "()V");
+		jmethodID getPtrMethod = env->GetMethodID(classCvMat, "getNativeObjAddr", "()J");
 
-	// Construct and return Mat
-	jobject objCvMat = env->NewObject(classCvMat, matInit);
-	Mat& matImage = *(Mat*)env->CallLongMethod(objCvMat, getPtrMethod);
+		// Construct and return Mat
+		jobject objCvMat = env->NewObject(classCvMat, matInit);
+		Mat& matImage = *(Mat*)env->CallLongMethod(objCvMat, getPtrMethod);
 
-	jbyte* frame = env->GetByteArrayElements(jyuv, 0);
-	Mat image;
-	Mat myuv(imgHeight + imgHeight / 2, imgWidth, CV_8UC1, (uchar *)frame);
-	cv::cvtColor(myuv, image, CV_YUV420sp2BGR);
-	cv::cvtColor(myuv, matImage, CV_YUV420sp2BGR);
+		jbyte* frame = env->GetByteArrayElements(jyuv, 0);
+		Mat image;
+		Mat myuv(imgHeight + imgHeight / 2, imgWidth, CV_8UC1, (uchar *)frame);
+		cv::cvtColor(myuv, image, CV_YUV420sp2BGR);
+		cv::cvtColor(myuv, matImage, CV_YUV420sp2BGR);
 
-	// Release pointer
-	env->DeleteLocalRef(classCvMat);
-    env->ReleaseByteArrayElements(jyuv, frame, 0);
-	return objCvMat;
-  }
+		// Release pointer
+		env->DeleteLocalRef(classCvMat);
+		env->ReleaseByteArrayElements(jyuv, frame, 0);
+		return objCvMat;
+	}
 
 #ifdef __cplusplus
 }

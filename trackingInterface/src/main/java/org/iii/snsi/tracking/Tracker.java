@@ -14,7 +14,7 @@ public interface Tracker {
 
     boolean removeTrackingObjects(int[] ids);
 
-    Object processTracking(byte[] image);
+    Object processTracking(byte[] image, int format);
 
     void release();
 

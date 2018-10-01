@@ -61,7 +61,7 @@ JNIEXPORT jboolean JNICALL Java_org_iii_snsi_videotracking_NativeTracking_remove
  * Signature: (J[B)[I
  */
 JNIEXPORT jintArray JNICALL Java_org_iii_snsi_videotracking_NativeTracking_processTracking
-  (JNIEnv *, jobject, jlong, jbyteArray);
+  (JNIEnv *, jobject, jlong, jbyteArray, jint);
 
 /*
  * Class:     org_iii_snsi_videotracking_NativeTracking
