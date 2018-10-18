@@ -64,6 +64,7 @@ public:
 			cv::Point2f initBottomDown(roi.x + roi.width - 1, roi.y + roi.height - 1);
 			CMT cmt;
 			cmt.initialise(im_gray, initTopLeft, initBottomDown);
+			cmt.processFrame(im_gray);
 			m_tracker.insert(std::make_pair(obj_id, cmt));
 		}
 		return obj_id;
@@ -99,9 +100,9 @@ public:
 			match.y *= ratio;
 			match.width *= ratio;
 			match.height *= ratio;
-			bool tracked = (match.x < 0 || match.x >= im_gray.cols || match.y < 0 ||
-			match.y >= im_gray.cols || match.width<0 || match.width>im_gray.cols ||
-			match.height<0 || match.height>im_gray.rows) ? false : true;
+			bool tracked = (match.x < 0 || match.x >= target.cols || match.y < 0 ||
+			match.y >= target.cols || match.width<0 || match.width>target.cols ||
+			match.height<0 || match.height>target.rows) ? false : true;
 			if (tracked)
 			{
 				objects.insert(std::make_pair(itr->first, match));
